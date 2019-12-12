@@ -159,20 +159,20 @@ class ConfigParser:
             config.write(configfile)
 
 
-field = namedtuple('field', 'name converter_name fallback', defaults=[None, None])
+field = namedtuple('field', 'name converter_name fallback')
 
 
 class SourceSettings:
     fields = [
         field('add_parsed_tags', 'getboolean', False),
         field('disable_link_preview', 'getboolean', False),
-        field('post_template', 'gettemplate'),
-        field('layout_template', 'gettemplate'),
-        field('parser_class'),
+        field('post_template', 'gettemplate', None),
+        field('layout_template', 'gettemplate', None),
+        field('parser_class', None, None),
         field('receivers', 'getlist', []),
-        field('sender_class'),
+        field('sender_class', None, None),
         field('tags', 'getlist', []),
-        field('url'),
+        field('url', None, None),
     ]
 
     def __init__(self, name, data):
