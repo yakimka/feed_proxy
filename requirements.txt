@@ -1,2 +1,7 @@
 feedparser
 peewee
+pyTelegramBotAPI
+requests
+pytest
+pytest-mock
+requests-mock
