@@ -82,7 +82,11 @@ class TelegramSender:
                           disable_web_page_preview=self.disable_link_preview)
 
     def send_message(self):
-        self.bot.send_message(self.chat_id, self.message, parse_mode='html',
+        message = self.message
+        if self.audio and self.audio.url:
+            message = f'🎵 <a href="{self.audio.url}">Прямая ссылка на аудио (больше 50МБ)</a>\n\n{message}'
+
+        self.bot.send_message(self.chat_id, message, parse_mode='html',
                               disable_web_page_preview=self.disable_link_preview)
 
     @classmethod
