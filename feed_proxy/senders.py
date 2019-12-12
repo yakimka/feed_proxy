@@ -2,6 +2,7 @@ import telebot
 
 from feed_proxy.config import get_config_storage
 from feed_proxy.exceptions import FeedProxyException
+from feed_proxy.utils import class_logger
 
 
 class TelegramSender:
@@ -10,6 +11,8 @@ class TelegramSender:
     MAX_FILE_SIZE_FOR_URL = 20
 
     def __init__(self, chat_id, message, attachments=None, disable_link_preview=False, token=None):
+        self.logger = class_logger(__name__, self.__class__.__name__)
+
         if token is None:
             token = get_config_storage().data['telegram']['token']
         if attachments is None:
@@ -41,11 +44,14 @@ class TelegramSender:
         try:
             file_size, *_ = self.audio.get_file_info()
         except AttributeError:
-            raise FeedProxyException('No audio to send')
+            msg = 'No audio to send'
+            self.logger.error(msg)
+            raise FeedProxyException(msg)
 
         if file_size > self.MAX_FILE_SIZE:
-            raise FeedProxyException(
-                f'Files larger than {self.MAX_FILE_SIZE}MB can\'t be sent through Telegram Bot API')
+            msg = f'Files larger than {self.MAX_FILE_SIZE}MB can\'t be sent through Telegram Bot API'
+            self.logger.error(msg)
+            raise FeedProxyException(msg)
 
         if file_size > self.MAX_FILE_SIZE_FOR_URL:
             self.audio.download()
@@ -66,6 +72,7 @@ class TelegramSender:
                                       timeout=30)
 
         if not caption:
+            self.logger.warning('Caption too long, sending as a reply message')
             self._reply_to_message(message)
 
     def _reply_to_message(self, message):

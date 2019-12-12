@@ -1,4 +1,5 @@
 import importlib
+import logging
 from collections import UserDict
 
 
@@ -26,3 +27,27 @@ class AttrDict(UserDict):
             super().__setattr__(key, value)
         else:
             self.data[key] = value
+
+
+class CompactFormatter(logging.Formatter):
+    """Leave class name only
+    """
+    def format(self, record):
+        record.name = record.name.rpartition('.')[-1]
+        return super().format(record)
+
+
+def make_logger(name, *, handler, level):
+    """Create the root logger
+    """
+    logger = logging.getLogger(name)
+    logger.addHandler(handler)
+    logger.setLevel(level)
+    logger.propagate = False
+    return logger
+
+
+def class_logger(path, classname):
+    """Return logger for a class
+    """
+    return logging.getLogger(path).getChild(classname)

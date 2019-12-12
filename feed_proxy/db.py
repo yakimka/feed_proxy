@@ -1,9 +1,13 @@
 import datetime
+import logging
 import os
 
 import peewee as pw
 
 from feed_proxy.config import BASE_DIR
+
+
+logger = logging.getLogger(__name__)
 
 database = pw.SqliteDatabase(os.path.join(BASE_DIR, 'feed_proxy.db'))
 
@@ -28,6 +32,7 @@ MODELS = [Processed]
 
 def init():
     if not database.get_tables():
+        logger.info('No tables, creating')
         _create_tables()
 
 

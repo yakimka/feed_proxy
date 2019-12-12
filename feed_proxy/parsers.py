@@ -6,15 +6,19 @@ import requests
 from requests import ConnectionError
 
 from feed_proxy.exceptions import FeedProxyException
+from feed_proxy.utils import class_logger
 
 
 class RSSFeedParser:
     def __init__(self, source):
+        self.logger = class_logger(__name__, self.__class__.__name__)
+
         self.source = source
         self.posts = []
 
     def parse(self):
         feed = feedparser.parse(self.source.url)
+        self.logger.info(f'{self.source.name}: parsed {len(feed.entries)} posts')
         self.posts = [Post(entry) for entry in feed.entries]
 
 
@@ -61,6 +65,8 @@ class Post:
 
 class Attachment:
     def __init__(self, enclosure, post):
+        self.logger = class_logger(__name__, self.__class__.__name__)
+
         self.post = post
         self.url = enclosure['url']
         self.type = enclosure['type']
@@ -84,20 +90,29 @@ class Attachment:
             size, direct_url, file_type = self._get_info_from_head_request()
             return size, direct_url, file_type
         except ConnectionError:
-            raise FeedProxyException(f'Could not retrieve data from {self.url}')
+            msg = f'Could not retrieve data from {self.url}'
+            self.logger.error(msg)
+            raise FeedProxyException(msg)
 
     def _get_info_from_head_request(self):
         res = requests.head(self.url, allow_redirects=True)
         if not res.ok:
-            raise FeedProxyException(f'Could not retrieve data from {self.url}')
+            msg = f'Could not retrieve data from {self.url}'
+            self.logger.error(msg)
+            raise FeedProxyException(msg)
+
         size_in_mb = int(res.headers['content-length']) / 1024 / 1024
         return size_in_mb, res.url, res.headers['content-type']
 
     def download(self):
         try:
+            self.logger.info(f'Start download a file for a "{self.post.title}"')
             self.file = self._download_file()
+            self.logger.info(f'File for a "{self.post.title}" downloaded')
         except ConnectionError:
-            raise FeedProxyException(f'Could not download file from {self.url}')
+            msg = f'Could not download file from {self.url}'
+            self.logger.error(msg)
+            raise FeedProxyException(msg)
 
     def _download_file(self):
         res = requests.get(self.url, allow_redirects=True)
@@ -108,6 +123,7 @@ class Attachment:
     def delete(self):
         os.remove(self.file.name)
         self.file = None
+        self.logger.warning(f'File for a "{self.post.title}" removed')
 
     def is_audio(self):
         return self.type.startswith('audio')
