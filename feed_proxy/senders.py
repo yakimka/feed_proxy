@@ -33,10 +33,11 @@ class TelegramSender:
 
     def send(self):
         try:
+            self.logger.info(f'Trying to send audio to "{self.chat_id}"')
             self.send_audio()
             return
         except FeedProxyException:
-            pass
+            self.logger.info(f'There is no audio or audio is larger than 50MB. Sending text message')
 
         self.send_message()
 
