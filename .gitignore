@@ -1,4 +1,4 @@
-/config.ini
+/*.ini
 *.db
 *.log
 /env
