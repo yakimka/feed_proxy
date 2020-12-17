@@ -108,12 +108,12 @@ def posts(source):
         'regular',
         'has_published',
         'wo_date',
-        'has_updated',
+        'wo_author',
         'has_tags',
         'audio_gt_20mb',
         'audio_lt_20mb',
         'audio_0b',
-        'original2',
+        'empty_author',  # authors -> [{}]
         'original3',
     ])
     return posts_(
@@ -167,7 +167,7 @@ def posts(source):
              attachments=(Attachment(href='http://localhost:45432/song.mp3', type='audio/mpeg',
                                      length=0),),
              published=datetime(2019, 10, 9, 12, 30, 4)),
-        Post(author='asvetlov', authors=(Author(name='asvetlov'),), source=source,
+        Post(author='aiohttp releases', authors=(Author(name='aiohttp releases'),), source=source,
              id='tag:github.com,2008:Repository/13258039/v3.6.2',
              url='https://github.com/aio-libs/aiohttp/releases/tag/v3.6.2',
              summary="<p>It contains several bufixes.</p>",

@@ -46,10 +46,12 @@ def rss_feed_posts_parser(source: Source, text: str) -> List[Post]:  # noqa C901
         return datetime.fromtimestamp(mktime(parsed_time))
 
     def get_author(entry):
-        return entry.get('author', source.name)
+        return entry.get('author') or source.name
 
     def get_authors(entry):
-        raw_authors = entry.get('authors', [{'name': get_author(entry)}])
+        raw_authors = list(filter(None, entry.get('authors', [])))
+        raw_authors = raw_authors or [{'name': get_author(entry)}]
+
         return tuple(Author(**data) for data in raw_authors)
 
     def get_tags(entry):
