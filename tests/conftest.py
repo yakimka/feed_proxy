@@ -77,8 +77,8 @@ def example_feed_server(httpserver, feed_xml):
 
 
 @pytest.fixture()
-def source():
-    return Source(
+def source_data():
+    return dict(
         name='aiohttp releases',
         url='http://localhost:45432/feed.xml',
         receiver='-1001234567890',
@@ -90,16 +90,16 @@ def source():
 
 
 @pytest.fixture()
-def error_source():
-    return Source(
-        name='server error feed',
-        url='http://localhost:45432/500',
-        receiver='-1001234567890',
-        post_template='<a href="{url}">{title}</a>\n\n{source_tags} {post_tags}',
-        encoding='utf-8',
-        disable_link_preview=True,
-        tags=tuple()
-    )
+def source(source_data):
+    return Source(**source_data)
+
+
+@pytest.fixture()
+def error_source(source_data):
+    source_data['name'] = 'server error feed'
+    source_data['url'] = 'http://localhost:45432/500'
+    source_data['tags'] = tuple()
+    return Source(**source_data)
 
 
 @pytest.fixture()

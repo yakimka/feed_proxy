@@ -63,12 +63,13 @@ def rss_feed_posts_parser(source: Source, text: str) -> List[Post]:  # noqa C901
     feed = feedparser.parse(text, response_headers={'content-type': 'text/html; charset=utf-8'})
     for entry in feed['entries']:
         try:
+            url = entry[source.url_field]
             posts.append(Post(
                 source=source,
                 author=get_author(entry),
                 authors=get_authors(entry),
-                id=entry.get('id', entry.link),
-                url=entry.link,
+                id=entry.get('id', url),
+                url=url,
                 summary=entry.summary,
                 title=entry.title,
                 attachments=get_attachments(entry),

@@ -17,8 +17,7 @@ TYPES_MAPPING = {
 }
 OPTIONS_MAPPING = {
     'post_template': 'gettemplate',
-    'parser_class': 'getparser',
-    'sender_class': 'getsender',
+    'keys_mapping': 'getmapping',
 }
 
 
@@ -29,8 +28,9 @@ class Source:
     receiver: str
     post_template: str
     disable_link_preview: bool = False
-    encoding: Optional[str] = None
     tags: tuple = tuple()
+    url_field: str = 'link'
+    encoding: Optional[str] = None
 
     @cached_property
     def hash_tags(self) -> tuple:

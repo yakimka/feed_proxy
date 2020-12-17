@@ -36,11 +36,11 @@ class ConfigReader:
         return converters
 
     @staticmethod
-    def convert_tuple(val) -> tuple:
+    def convert_tuple(val: str) -> tuple:
         return tuple(filter(None, val.split(' ')))
 
     @staticmethod
-    def convert_template(val) -> str:
+    def convert_template(val: str) -> str:
         return val.replace('<br>', '\n')
 
 
