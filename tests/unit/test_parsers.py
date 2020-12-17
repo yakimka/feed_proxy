@@ -72,7 +72,8 @@ class TestParsePostsFunc:
         parsers.parse_posts([self.empty_text])
 
         assert caplog.records[0].levelname == 'WARNING'
-        assert "Can't find posts in 'aiohttp releases'. Text:\n" in caplog.text
+        assert ("Can't find posts in 'http://localhost:45432/feed.xml'"
+                " from 'aiohttp releases'. Text:\n") in caplog.text
 
     def test_warning_when_error_status(self, caplog):
         parsers.parse_posts([self.s400])

@@ -16,12 +16,14 @@ def parse_posts(fetched: List[fetched_item]) -> List[Post]:
     parsed = []
     for source, status, text in fetched:
         if status and status >= 400:
-            msg = f"Status code {status} when trying to fetch '{source.name}'. Text:\n{text}"
+            msg = (f"Status code {status} when trying"
+                   f" to fetch '{source.url}' from '{source.name}'. Text:\n{text}")
             logger.warning(msg)
             continue
         posts = rss_feed_posts_parser(source, text)
         if not posts:
-            logger.warning(f"Can't find posts in '{source.name}'. Text:\n{text}")
+            msg = f"Can't find posts in '{source.url}' from '{source.name}'. Text:\n{text}"
+            logger.warning(msg)
         parsed.extend(posts)
     return parsed
 
