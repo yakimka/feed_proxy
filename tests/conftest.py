@@ -77,8 +77,8 @@ def example_feed_server(httpserver, feed_xml):
 
 
 @pytest.fixture()
-def source():
-    return Source(
+def source_data():
+    return dict(
         name='aiohttp releases',
         url='http://localhost:45432/feed.xml',
         receiver='-1001234567890',
@@ -90,16 +90,16 @@ def source():
 
 
 @pytest.fixture()
-def error_source():
-    return Source(
-        name='server error feed',
-        url='http://localhost:45432/500',
-        receiver='-1001234567890',
-        post_template='<a href="{url}">{title}</a>\n\n{source_tags} {post_tags}',
-        encoding='utf-8',
-        disable_link_preview=True,
-        tags=tuple()
-    )
+def source(source_data):
+    return Source(**source_data)
+
+
+@pytest.fixture()
+def error_source(source_data):
+    source_data['name'] = 'server error feed'
+    source_data['url'] = 'http://localhost:45432/500'
+    source_data['tags'] = tuple()
+    return Source(**source_data)
 
 
 @pytest.fixture()
@@ -114,7 +114,7 @@ def posts(source):
         'audio_lt_20mb',
         'audio_0b',
         'empty_author',  # authors -> [{}]
-        'original3',
+        'without_id',
     ])
     return posts_(
         Post(author='asvetlov', authors=(Author(name='asvetlov'),), source=source,
@@ -174,7 +174,7 @@ def posts(source):
              title='aiohttp 3.6.2 release', tags=tuple(), attachments=tuple(),
              published=datetime(2019, 10, 9, 18, 5, 13)),
         Post(author='asvetlov', authors=(Author(name='asvetlov'),), source=source,
-             id='tag:github.com,2008:Repository/13258039/v3.6.2a2',
+             id='https://github.com/aio-libs/aiohttp/releases/tag/v3.6.2a2',
              url='https://github.com/aio-libs/aiohttp/releases/tag/v3.6.2a2',
              summary='No content.', title='v3.6.2a2', tags=tuple(), attachments=tuple(),
              published=datetime(2019, 10, 9, 18, 4, 7))
