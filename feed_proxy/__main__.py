@@ -1,9 +1,7 @@
-import asyncio
 import logging
 import os
 from argparse import ArgumentParser
 
-from aiohttp.connector import Connection
 from sqlalchemy import create_engine
 
 from feed_proxy import handlers
@@ -34,25 +32,20 @@ HANDLERS = [
 ]
 
 
-async def run(connection: Connection):
-    fetched = await fetch_sources()
-
-    parsed = parse_posts(fetched)
-
-    result = HANDLERS[0](connection)(parsed)
-    for handler in HANDLERS[1:]:
-        result = handler(connection)(result)
-
-
 def main():
     args = parser.parse_args()
 
     logging.basicConfig(level=args.log_level.upper())
-
     settings.configure(args.sources_file, PROXY_BOT_URL=args.proxy_bot_url)
+
     engine = create_engine(args.db_url)
     with engine.connect() as conn:
-        asyncio.run(run(conn))
+        fetched = fetch_sources()
+        parsed = parse_posts(fetched)
+
+        result = HANDLERS[0](conn)(parsed)
+        for handler in HANDLERS[1:]:
+            result = handler(conn)(result)
 
 
 if __name__ == '__main__':

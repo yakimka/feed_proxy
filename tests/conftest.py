@@ -33,7 +33,7 @@ def alembic_config(sqlite):
 
 
 @pytest.fixture()
-async def migrated_sqlite(alembic_config, sqlite):
+def migrated_sqlite(alembic_config, sqlite):
     upgrade(alembic_config, 'head')
     return sqlite
 
