@@ -1,27 +1,29 @@
 from __future__ import annotations
 
-import asyncio
 from collections import namedtuple
+from concurrent import futures
 
-import aiohttp
+import requests
 
 from feed_proxy.conf import settings
 from feed_proxy.schema import Source
 
+MAX_WORKERS = 20
 
-async def fetch_sources():
-    tasks = []
-    for source in settings.SOURCES:
-        tasks.append(asyncio.create_task(fetch_text_for_source(source)))
-    return await asyncio.gather(*tasks)
+
+def fetch_sources():
+    workers = min(MAX_WORKERS, len(settings.SOURCES))
+    with futures.ThreadPoolExecutor(workers) as executor:
+        res = executor.map(fetch_text_for_source, settings.SOURCES)
+    return list(res)
 
 
 fetched_item = namedtuple('fetched_item', 'source,status_code,text')
 
 
 # TODO retry on errors
-async def fetch_text_for_source(source: Source) -> fetched_item:
-    async with aiohttp.request('GET', source.url) as resp:
-        status_code = resp.status
-        text = await resp.text(encoding=source.encoding)
-    return fetched_item(source, status_code, text)
+def fetch_text_for_source(source: Source) -> fetched_item:
+    res = requests.get(source.url)
+    if source.encoding:
+        res.encoding = source.encoding
+    return fetched_item(source, res.status_code, res.text)
