@@ -54,7 +54,7 @@ def test_create_processed_many(migrated_sqlite_connection, posts_parsed):
         ('aiohttp releases', 'tag:github.com,2008:Repository/13258039/v3.6.3'),
         ('aiohttp releases', 'tag:github.com,2008:Repository/13258039/v4.0.0a1'),
         ('aiohttp releases', 'tag:github.com,2008:Repository/13258039/v3.6.2'),
-        ('aiohttp releases', 'tag:github.com,2008:Repository/13258039/v3.6.2a2')]
+        ('aiohttp releases', 'https://github.com/aio-libs/aiohttp/releases/tag/v3.6.2a2')]
 
 
 def test_is_post_processed(migrated_sqlite_connection, posts):
