@@ -1,3 +1,4 @@
+import json
 import logging
 from datetime import datetime
 from time import mktime
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 def parse_posts(fetched: List[fetched_item]) -> List[Post]:
     parsed = []
     for source, status, text in fetched:
-        if status >= 400:
+        if status and status >= 400:
             msg = f"Status code {status} when trying to fetch '{source.name}'. Text:\n{text}"
             logger.warning(msg)
             continue
@@ -31,8 +32,6 @@ def rss_feed_posts_parser(source: Source, text: str) -> List[Post]:  # noqa C901
     if not text:
         return posts
 
-    feed = feedparser.parse(text, response_headers={'content-type': 'text/html; charset=utf-8'})
-
     def get_published(entry):
         parsed_time = None
         if entry.get('published_parsed'):
@@ -41,7 +40,6 @@ def rss_feed_posts_parser(source: Source, text: str) -> List[Post]:  # noqa C901
             parsed_time = entry.get('updated_parsed')
         if not parsed_time:
             logger.warning(f"Can't parse published date: '{source.name}'; '{entry.title}'")
-            print('Has not published', source.name)
             return None
         return datetime.fromtimestamp(mktime(parsed_time))
 
@@ -62,20 +60,23 @@ def rss_feed_posts_parser(source: Source, text: str) -> List[Post]:  # noqa C901
             Attachment(length=int(data.pop('length') or 0), **data) for data in entry.enclosures
         )
 
+    feed = feedparser.parse(text, response_headers={'content-type': 'text/html; charset=utf-8'})
     for entry in feed['entries']:
-        logger.info(f"Start parsing '{getattr(entry, 'title', None)} from '{source.name}'")
-
-        posts.append(Post(
-            source=source,
-            author=get_author(entry),
-            authors=get_authors(entry),
-            id=entry.get('id', entry.link),
-            url=entry.link,
-            summary=entry.summary,
-            title=entry.title,
-            attachments=get_attachments(entry),
-            published=get_published(entry),
-            tags=get_tags(entry),
-        ))
+        try:
+            posts.append(Post(
+                source=source,
+                author=get_author(entry),
+                authors=get_authors(entry),
+                id=entry.get('id', entry.link),
+                url=entry.link,
+                summary=entry.summary,
+                title=entry.title,
+                attachments=get_attachments(entry),
+                published=get_published(entry),
+                tags=get_tags(entry),
+            ))
+        except Exception:
+            entry_ = json.dumps(entry, sort_keys=True, indent=4)
+            raise ValueError(f"Can't process entry. Source: '{source.name}'\nEntry: {entry_}")
 
     return posts

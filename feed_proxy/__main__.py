@@ -37,12 +37,12 @@ def main():
 
     logging.basicConfig(level=args.log_level.upper())
     settings.configure(args.sources_file, PROXY_BOT_URL=args.proxy_bot_url)
-
     engine = create_engine(args.db_url)
-    with engine.connect() as conn:
-        fetched = fetch_sources()
-        parsed = parse_posts(fetched)
 
+    fetched = fetch_sources()
+    parsed = parse_posts(fetched)
+
+    with engine.connect() as conn:
         result = HANDLERS[0](conn)(parsed)
         for handler in HANDLERS[1:]:
             result = handler(conn)(result)

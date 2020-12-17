@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 
 from feed_proxy import parsers
@@ -17,6 +19,15 @@ def test_rss_feed_posts_parser_when_empty_text(source):
     assert [] == posts
 
 
+@patch.object(parsers.feedparser, 'parse', return_value={'entries': [{}]})
+def test_rss_feed_posts_parser_unexpected_error(m_parse, source, feed_xml):
+    with pytest.raises(ValueError) as e:  # noqa PT011
+        parsers.rss_feed_posts_parser(source, feed_xml)
+
+    assert "Can't process entry. Source: 'aiohttp releases'" in str(e)
+    assert 'Entry: {}' in str(e)
+
+
 class TestParsePostsFunc:
     @pytest.fixture(autouse=True)
     def _setup_method(self, source, feed_xml, error_source, posts_parsed):
@@ -27,6 +38,7 @@ class TestParsePostsFunc:
         self.s400 = (error_source, 400, 'Client error')
         self.s500 = (error_source, 500, 'Server error')
         self.empty_text = (source, 200, '')
+        self.err = (error_source, None, '')
 
     def test_parse_posts(self):
         results = parsers.parse_posts([self.s200])
@@ -35,6 +47,11 @@ class TestParsePostsFunc:
 
     def test_parse_posts_from_empty_text(self):
         results = parsers.parse_posts([self.empty_text])
+
+        assert results == []
+
+    def test_parse_posts_on_request_error(self):
+        results = parsers.parse_posts([self.err])
 
         assert results == []
 
