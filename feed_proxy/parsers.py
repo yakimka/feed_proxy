@@ -63,6 +63,8 @@ def rss_feed_posts_parser(source: Source, text: str) -> List[Post]:  # noqa C901
         )
 
     for entry in feed['entries']:
+        logger.info(f"Start parsing '{getattr(entry, 'title', None)} from '{source.name}'")
+
         posts.append(Post(
             source=source,
             author=get_author(entry),
