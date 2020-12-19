@@ -43,7 +43,12 @@ def rss_feed_posts_parser(source: Source, text: str) -> List[Post]:  # noqa C901
         if not parsed_time:
             logger.warning(f"Can't parse published date: '{source.name}'; '{entry.title}'")
             return None
-        return datetime.fromtimestamp(mktime(parsed_time))
+        try:
+            return datetime.fromtimestamp(mktime(parsed_time))
+        # Example: Mon, 01 Jan 0001 00:00:00 +0000
+        except ValueError:
+            logger.exception(f"Can't parse '{parsed_time}' to datetime. Source: {source.name}")
+            return None
 
     def get_author(entry):
         return entry.get('author') or source.name
