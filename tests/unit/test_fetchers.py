@@ -12,7 +12,7 @@ def test_fetch_text_for_source(source):
     res_source, status, text = fetchers.fetch_text_for_source(source)
 
     assert 200 == status
-    assert 'aiohttp 3.7.2 release' in text
+    assert 'feed_proxy 100 release' in text
     assert source == res_source
 
 
@@ -30,7 +30,7 @@ def test_fetch_text_for_source_log_error_on_request_error(m_get, source, caplog)
     fetchers.fetch_text_for_source(source)
 
     assert caplog.records[0].levelname == 'ERROR'
-    assert "Can't fetch 'http://localhost:45432/feed.xml' from 'aiohttp releases'" in caplog.text
+    assert "Can't fetch 'http://localhost:45432/feed.xml' from 'feed_proxy releases'" in caplog.text
 
 
 def test_fetch_text():
@@ -38,8 +38,8 @@ def test_fetch_text():
     source, status, text = res[0]
 
     assert 200 == status
-    assert 'aiohttp 3.7.2 release' in text
-    assert 'aiohttp releases' == source.name
+    assert 'feed_proxy 100 release' in text
+    assert 'feed_proxy releases' == source.name
 
 
 def test_fetch_error():

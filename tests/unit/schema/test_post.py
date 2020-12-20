@@ -27,13 +27,13 @@ def other_audio_attachment():
 @pytest.fixture()
 def post_data(source, audio_attachment):
     return {
-        'author': 'asvetlov',
-        'authors': (schema.Author(name='asvetlov'),),
+        'author': 'yakimka',
+        'authors': (schema.Author(name='yakimka'),),
         'source': source,
-        'id': 'tag:github.com,2008:Repository/13258039/v3.7.0b0',
-        'url': 'https://github.com/aio-libs/aiohttp/releases/tag/v3.7.0b0',
-        'summary': '<p>Release 3.7.0b0</p>',
-        'title': 'v3.7.0b0',
+        'id': 'audio_gt_20mb',
+        'url': 'https://github.com/yakimka/feed_proxy/releases/tag/95',
+        'summary': 'Lorem ipsum dolor sit amet, consectetur adipisicing.',
+        'title': 'feed_proxy 95 release',
         'tags': ('post_hash', 'post_tag'),
         'attachments': (
             audio_attachment,
@@ -96,6 +96,6 @@ def test_hash_tags(m_make_hash_tags, post):
 
 def test_message_text(post):
     assert post.message_text == (
-        '<a href="https://github.com/aio-libs/aiohttp/releases/tag/v3.7.0b0">v3.7.0b0</a>'
-        '\n\n#hash #tag #post_hash #post_tag'
+        '<a href="https://github.com/yakimka/feed_proxy/releases/tag/95">feed_proxy 95 release</a>'
+        '\n\n#hash #tag\n#post_hash #post_tag'
     )

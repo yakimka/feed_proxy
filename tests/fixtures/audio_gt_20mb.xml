@@ -1,0 +1,13 @@
+<entry>
+    <id>audio_gt_20mb</id>
+    <updated>2020-10-21T18:54:04Z</updated>
+    <link rel="alternate" type="text/html"
+          href="https://github.com/yakimka/feed_proxy/releases/tag/95"/>
+    <title>feed_proxy 95 release</title>
+    <custom_field>some value</custom_field>
+    <content type="html">Lorem ipsum dolor sit amet, consectetur adipisicing.&gt;</content>
+    <author>
+        <name>yakimka</name>
+    </author>
+    <enclosure url="http://localhost:45432/song.mp3" length="21652106" type="audio/mpeg"/>
+</entry>

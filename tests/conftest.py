@@ -58,10 +58,37 @@ def _setup_settings():
 
 
 @pytest.fixture(scope='session')
-def feed_xml():
+def feed_xml_factory():
     base_path = os.path.dirname(__file__)
-    with open(os.path.join(base_path, 'fixtures', 'feed.xml'), 'r') as fp:
-        return fp.read()
+
+    def factory(*enties: str, base: str = 'feed_base'):
+        feed_items = []
+        for item in enties:
+            with open(os.path.join(base_path, 'fixtures', f'{item}.xml'), 'r') as fp:
+                feed_items.append(fp.read())
+
+        with open(os.path.join(base_path, 'fixtures', f'{base}.xml'), 'r') as fp:
+            feed_base = fp.read()
+
+        return feed_base.format(entries=''.join(feed_items))
+
+    return factory
+
+
+@pytest.fixture(scope='session')
+def feed_xml(feed_xml_factory):
+    return feed_xml_factory(
+        'regular',
+        'has_published',
+        'wo_date',
+        'wo_author',
+        'has_tags',
+        'audio_gt_20mb',
+        'audio_lt_20mb',
+        'audio_0b',
+        'empty_author',
+        'wo_id',
+    )
 
 
 @pytest.fixture()
@@ -79,11 +106,10 @@ def example_feed_server(httpserver, feed_xml):
 @pytest.fixture()
 def source_data():
     return dict(
-        name='aiohttp releases',
+        name='feed_proxy releases',
         url='http://localhost:45432/feed.xml',
         receiver='-1001234567890',
-        post_template='<a href="{url}">{title}</a>\n\n{source_tags} {post_tags}',
-        encoding='utf-8',
+        post_template='<a href="{url}">{title}</a>\n\n{source_tags}\n{post_tags}',
         disable_link_preview=True,
         tags=('hash', 'tag')
     )
@@ -114,70 +140,78 @@ def posts(source):
         'audio_lt_20mb',
         'audio_0b',
         'empty_author',  # authors -> [{}]
-        'without_id',
+        'wo_id',
     ])
     return posts_(
-        Post(author='asvetlov', authors=(Author(name='asvetlov'),), source=source,
-             id='tag:github.com,2008:Repository/13258039/v3.7.3',
-             url='https://github.com/aio-libs/aiohttp/releases/tag/v3.7.3',
-             summary='Use Brotli instead of brotlipy<br />',
-             title='aiohttp 3.7.3 release', tags=tuple(), attachments=tuple(),
+        Post(id='regular', author='yakimka', authors=(Author(name='yakimka', href='', email=''),),
+             url='https://github.com/yakimka/feed_proxy/releases/tag/100',
+             summary='Lorem ipsum dolor sit amet, consectetur adipisicing.>',
+             title='feed_proxy 100 release',
+             source=source, tags=(), attachments=(),
              published=datetime(2020, 11, 18, 19, 38, 17)),
-        Post(author='asvetlov', authors=(Author(name='asvetlov'),), source=source,
-             id='tag:github.com,2008:Repository/13258039/v3.7.2',
-             url='https://github.com/aio-libs/aiohttp/releases/tag/v3.7.2',
-             summary='<h2>Bugfixes</h2>',
-             title='aiohttp 3.7.2 release', tags=tuple(), attachments=tuple(),
+        Post(id='has_published', author='yakimka',
+             authors=(Author(name='yakimka', href='', email=''),),
+             url='https://github.com/yakimka/feed_proxy/releases/tag/99',
+             summary='Lorem ipsum dolor sit amet, consectetur adipisicing.>',
+             title='feed_proxy 99 release',
+             source=source, tags=(), attachments=(),
              published=datetime(2020, 10, 27, 8, 9, 32)),
-        Post(author='asvetlov', authors=(Author(name='asvetlov'),), source=source,
-             id='tag:github.com,2008:Repository/13258039/v3.7.1',
-             url='https://github.com/aio-libs/aiohttp/releases/tag/v3.7.1',
-             summary="<h2>Bugfixes</h2>",
-             title='aiohttp 3.7.1 release', tags=tuple(), attachments=tuple(), published=None),
-        Post(author='aiohttp releases', source=source, authors=(Author(name='aiohttp releases'),),
-             id='tag:github.com,2008:Repository/13258039/v3.7.0',
-             url='https://github.com/aio-libs/aiohttp/releases/tag/v3.7.0',
-             summary='aiohttp 3.7.0 release',
-             title='aiohttp 3.7.0 release', tags=tuple(), attachments=tuple(),
+        Post(id='wo_date', author='yakimka', authors=(Author(name='yakimka', href='', email=''),),
+             url='https://github.com/yakimka/feed_proxy/releases/tag/98',
+             summary='Lorem ipsum dolor sit amet, consectetur adipisicing.>',
+             title='feed_proxy 98 release',
+             source=source, tags=(), attachments=(), published=None),
+        Post(id='wo_author', author='feed_proxy releases',
+             authors=(Author(name='feed_proxy releases', href='', email=''),),
+             url='https://github.com/yakimka/feed_proxy/releases/tag/97',
+             summary='Lorem ipsum dolor sit amet, consectetur adipisicing.>',
+             title='feed_proxy 97 release',
+             source=source, tags=(), attachments=(),
              published=datetime(2020, 10, 24, 9, 39, 14)),
-        Post(author='asvetlov', authors=(Author(name='asvetlov'),), source=source,
-             id='tag:github.com,2008:Repository/13258039/v3.7.0b1',
-             url='https://github.com/aio-libs/aiohttp/releases/tag/v3.7.0b1',
-             summary='<p>Release 3.7.0b1</p>', title='v3.7.0b1',
-             tags=('Python', 'асинхронное программирование', 'aiohttp'), attachments=tuple(),
-             published=datetime(2020, 10, 22, 15, 15, 1)),
-        Post(author='asvetlov', authors=(Author(name='asvetlov'),), source=source,
-             id='tag:github.com,2008:Repository/13258039/v3.7.0b0',
-             url='https://github.com/aio-libs/aiohttp/releases/tag/v3.7.0b0',
-             summary='<p>Release 3.7.0b0</p>', title='v3.7.0b0', tags=tuple(),
-             attachments=(Attachment(href='http://localhost:45432/song.mp3', type='audio/mpeg',
-                                     length=21652106),),
-             published=datetime(2020, 10, 21, 19, 54, 4)),
-        Post(author='asvetlov', authors=(Author(name='asvetlov'),), source=source,
-             id='tag:github.com,2008:Repository/13258039/v3.6.3',
-             url='https://github.com/aio-libs/aiohttp/releases/tag/v3.6.3',
-             summary='<p>Release 3.6.3</p>', title='v3.6.3', tags=tuple(),
-             attachments=(Attachment(href='http://localhost:45432/song.mp3', type='audio/mpeg',
-                                     length=19999999),),
-             published=datetime(2020, 10, 12, 11, 36, 15)),
-        Post(author='asvetlov', authors=(Author(name='asvetlov'),), source=source,
-             id='tag:github.com,2008:Repository/13258039/v4.0.0a1',
-             url='https://github.com/aio-libs/aiohttp/releases/tag/v4.0.0a1',
-             summary='No content.', title='v4.0.0a1', tags=tuple(),
-             attachments=(Attachment(href='http://localhost:45432/song.mp3', type='audio/mpeg',
-                                     length=0),),
+        Post(id='has_tags', author='yakimka', authors=(Author(name='yakimka', href='', email=''),),
+             url='https://github.com/yakimka/feed_proxy/releases/tag/96',
+             summary='Lorem ipsum dolor sit amet, consectetur adipisicing.>',
+             title='feed_proxy 96 release',
+             source=source, tags=('Python', 'агрегатор rss', 'feed proxy'),
+             attachments=(), published=datetime(2020, 10, 22, 15, 15, 1)),
+        Post(id='audio_gt_20mb', author='yakimka',
+             authors=(Author(name='yakimka', href='', email=''),),
+             url='https://github.com/yakimka/feed_proxy/releases/tag/95',
+             summary='Lorem ipsum dolor sit amet, consectetur adipisicing.>',
+             title='feed_proxy 95 release',
+             source=source, tags=(), attachments=(
+                Attachment(href='http://localhost:45432/song.mp3', type='audio/mpeg',
+                           length=21652106),), published=datetime(2020, 10, 21, 19, 54, 4)),
+        Post(id='audio_lt_20mb', author='yakimka',
+             authors=(Author(name='yakimka', href='', email=''),),
+             url='https://github.com/yakimka/feed_proxy/releases/tag/94',
+             summary='Lorem ipsum dolor sit amet, consectetur adipisicing.>',
+             title='feed_proxy 94 release',
+             source=source, tags=(), attachments=(
+                Attachment(href='http://localhost:45432/song.mp3', type='audio/mpeg',
+                           length=19999999),), published=datetime(2020, 10, 12, 11, 36, 15)),
+        Post(id='audio_0b', author='yakimka', authors=(Author(name='yakimka', href='', email=''),),
+             url='https://github.com/yakimka/feed_proxy/releases/tag/93',
+             summary='Lorem ipsum dolor sit amet, consectetur adipisicing.>',
+             title='feed_proxy 93 release',
+             source=source, tags=(), attachments=(
+                Attachment(href='http://localhost:45432/song.mp3', type='audio/mpeg', length=0),),
              published=datetime(2019, 10, 9, 12, 30, 4)),
-        Post(author='aiohttp releases', authors=(Author(name='aiohttp releases'),), source=source,
-             id='tag:github.com,2008:Repository/13258039/v3.6.2',
-             url='https://github.com/aio-libs/aiohttp/releases/tag/v3.6.2',
-             summary="<p>It contains several bufixes.</p>",
-             title='aiohttp 3.6.2 release', tags=tuple(), attachments=tuple(),
+        Post(id='empty_author', author='feed_proxy releases',
+             authors=(Author(name='feed_proxy releases', href='', email=''),),
+             url='https://github.com/yakimka/feed_proxy/releases/tag/92',
+             summary='Lorem ipsum dolor sit amet, consectetur adipisicing.>',
+             title='feed_proxy 92 release',
+             source=source, tags=(), attachments=(),
              published=datetime(2019, 10, 9, 18, 5, 13)),
-        Post(author='asvetlov', authors=(Author(name='asvetlov'),), source=source,
-             id='https://github.com/aio-libs/aiohttp/releases/tag/v3.6.2a2',
-             url='https://github.com/aio-libs/aiohttp/releases/tag/v3.6.2a2',
-             summary='No content.', title='v3.6.2a2', tags=tuple(), attachments=tuple(),
+        Post(id='https://github.com/yakimka/feed_proxy/releases/tag/91',
+             author='yakimka', authors=(Author(name='yakimka', href='', email=''),),
+             url='https://github.com/yakimka/feed_proxy/releases/tag/91',
+             summary='Lorem ipsum dolor sit amet, consectetur adipisicing.>',
+             title='feed_proxy 91 release',
+             source=source, tags=(), attachments=(),
              published=datetime(2019, 10, 9, 18, 4, 7))
+
     )
 
 

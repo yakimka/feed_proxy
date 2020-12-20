@@ -1,0 +1,12 @@
+<entry>
+    <id>has_published</id>
+    <published>2020-10-27T08:09:32Z</published>
+    <link rel="alternate" type="text/html"
+          href="https://github.com/yakimka/feed_proxy/releases/tag/99"/>
+    <title>feed_proxy 99 release</title>
+    <custom_field>some value</custom_field>
+    <content type="html">Lorem ipsum dolor sit amet, consectetur adipisicing.&gt;</content>
+    <author>
+        <name>yakimka</name>
+    </author>
+</entry>

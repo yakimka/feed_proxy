@@ -11,7 +11,8 @@ def test_rss_feed_posts_parser(feed_xml, source, posts_parsed, caplog):
 
     assert posts_parsed == posts
     assert caplog.records[0].levelname == 'WARNING'
-    assert "Can't parse published date: 'aiohttp releases'; 'aiohttp 3.7.1 release'" in caplog.text
+    assert ("Can't parse published date: 'feed_proxy releases'; 'feed_proxy 98 release'"
+            in caplog.text)
 
 
 def test_rss_feed_posts_parser_when_empty_text(source):
@@ -32,7 +33,7 @@ def test_rss_feed_posts_parser_unexpected_error(m_parse, source, feed_xml):
     with pytest.raises(ValueError) as e:  # noqa PT011
         parsers.rss_feed_posts_parser(source, feed_xml)
 
-    assert "Can't process entry. Source: 'aiohttp releases'" in str(e)
+    assert "Can't process entry. Source: 'feed_proxy releases'" in str(e)
     assert 'Entry: {}' in str(e)
 
 
@@ -73,7 +74,7 @@ class TestParsePostsFunc:
 
         assert caplog.records[0].levelname == 'WARNING'
         assert ("Can't find posts in 'http://localhost:45432/feed.xml'"
-                " from 'aiohttp releases'. Text:\n") in caplog.text
+                " from 'feed_proxy releases'. Text:\n") in caplog.text
 
     def test_warning_when_error_status(self, caplog):
         parsers.parse_posts([self.s400])
