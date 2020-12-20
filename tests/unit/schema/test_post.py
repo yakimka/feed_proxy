@@ -4,6 +4,7 @@ from unittest.mock import patch
 import pytest
 
 from feed_proxy import schema
+from feed_proxy.schema import Post, Source
 
 
 @pytest.fixture()
@@ -94,8 +95,24 @@ def test_hash_tags(m_make_hash_tags, post):
     m_make_hash_tags.assert_called_once_with(('post_hash', 'post_tag'))
 
 
-def test_message_text(post):
+def test_message_text(source_data, post_data):
+    source_data['post_template'] = ('{all_tags} {post_tags} {source_tags}\n'
+                                    '{source_name} {author} {url} {summary} {title} {published}')
+    post_data['source'] = Source(**source_data)
+    post = Post(**post_data)
+
     assert post.message_text == (
-        '<a href="https://github.com/yakimka/feed_proxy/releases/tag/95">feed_proxy 95 release</a>'
-        '\n\n#hash #tag\n#post_hash #post_tag'
+        '#hash #tag #post_hash #post_tag #post_hash #post_tag #hash #tag\nfeed_proxy releases'
+        ' yakimka https://github.com/yakimka/feed_proxy/releases/tag/95'
+        ' Lorem ipsum dolor sit amet, consectetur adipisicing. feed_proxy 95 release'
+        ' 21-10-2020 19:54:04'
     )
+
+
+def test_message_text_when_published_not_parsed(source_data, post_data):
+    source_data['post_template'] = '{source_name} {published}'
+    post_data['source'] = Source(**source_data)
+    post_data['published'] = None
+    post = Post(**post_data)
+
+    assert post.message_text == 'feed_proxy releases'

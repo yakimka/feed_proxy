@@ -117,4 +117,4 @@ class Post:
             summary=self.summary,
             title=self.title,
             published=published,
-        )
+        ).strip()
