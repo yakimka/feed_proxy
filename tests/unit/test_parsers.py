@@ -1,40 +1,6 @@
-from unittest.mock import patch
-
 import pytest
 
 from feed_proxy import parsers
-from feed_proxy.schema import Source
-
-
-def test_rss_feed_posts_parser(feed_xml, source, posts_parsed, caplog):
-    posts = parsers.rss_feed_posts_parser(source, feed_xml)
-
-    assert posts_parsed == posts
-    assert caplog.records[0].levelname == 'WARNING'
-    assert ("Can't parse published date: 'feed_proxy releases'; 'feed_proxy 98 release'"
-            in caplog.text)
-
-
-def test_rss_feed_posts_parser_when_empty_text(source):
-    posts = parsers.rss_feed_posts_parser(source, '')
-
-    assert [] == posts
-
-
-def test_rss_feed_posts_parser_source_with_custom_url_field(source_data, feed_xml):
-    source_data['url_field'] = 'custom_field'
-    posts = parsers.rss_feed_posts_parser(Source(**source_data), feed_xml)
-
-    assert posts[0].url == 'some value'
-
-
-@patch.object(parsers.feedparser, 'parse', return_value={'entries': [{}]})
-def test_rss_feed_posts_parser_unexpected_error(m_parse, source, feed_xml):
-    with pytest.raises(ValueError) as e:  # noqa PT011
-        parsers.rss_feed_posts_parser(source, feed_xml)
-
-    assert "Can't process entry. Source: 'feed_proxy releases'" in str(e)
-    assert 'Entry: {}' in str(e)
 
 
 class TestParsePostsFunc:

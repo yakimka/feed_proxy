@@ -141,6 +141,7 @@ def posts(source):
         'audio_0b',
         'empty_author',  # authors -> [{}]
         'wo_id',
+        'wrong_date',
     ])
     return posts_(
         Post(id='regular', author='yakimka', authors=(Author(name='yakimka', href='', email=''),),
@@ -210,14 +211,21 @@ def posts(source):
              summary='Lorem ipsum dolor sit amet, consectetur adipisicing.>',
              title='feed_proxy 91 release',
              source=source, tags=(), attachments=(),
-             published=datetime(2019, 10, 9, 18, 4, 7))
+             published=datetime(2019, 10, 9, 18, 4, 7)),
 
+        Post(id='wrong_date', author='yakimka',
+             authors=(Author(name='yakimka', href='', email=''),),
+             url='https://github.com/yakimka/feed_proxy/releases',
+             summary='Lorem ipsum dolor sit amet, consectetur adipisicing.>',
+             title='feed_proxy release',
+             source=source, tags=(), attachments=(),
+             published=None),
     )
 
 
 @pytest.fixture()
 def posts_parsed(posts):
-    return list(posts)
+    return list(posts[:10])
 
 
 @pytest.fixture()
