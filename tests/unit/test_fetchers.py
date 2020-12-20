@@ -4,7 +4,6 @@ import pytest
 from requests import RequestException
 
 from feed_proxy import fetchers
-from feed_proxy.schema import Source
 
 pytestmark = [pytest.mark.usefixtures('example_feed_server')]
 
@@ -35,11 +34,11 @@ def test_fetch_text_for_source_log_error_on_request_error(m_get, source, caplog)
 
 
 @patch.object(fetchers.requests, 'get')
-def test_fetch_text_for_source_specify_encoding(m_get, source_data, caplog):
-    source_data['encoding'] = 'UtF-8'
-    fetchers.fetch_text_for_source(Source(**source_data))
+def test_fetch_text_for_source_specify_encoding(m_get, factory, caplog):
+    source = factory.source(encoding='Some-Encoding')
+    fetchers.fetch_text_for_source(source)
 
-    assert m_get.return_value.encoding == 'UtF-8'
+    assert m_get.return_value.encoding == 'Some-Encoding'
 
 
 def test_fetch_text():

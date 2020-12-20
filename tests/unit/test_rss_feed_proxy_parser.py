@@ -1,7 +1,6 @@
 import pytest
 
 from feed_proxy import parsers
-from feed_proxy.schema import Source
 
 parser_func = parsers.rss_feed_posts_parser
 
@@ -19,7 +18,7 @@ parser_func = parsers.rss_feed_posts_parser
     'wo_id',  # hacker news has no id tag
     'wrong_date',
 ])
-def test_parse_posts(source, feed_xml_factory, posts, post_type):
+def test_parse_posts(source, posts, post_type, feed_xml_factory):
     feed_xml = feed_xml_factory(post_type)
     parsed_posts = parser_func(source, feed_xml)
 
@@ -55,9 +54,9 @@ def test_logger_message_when_parse_wrong_published_date(source, feed_xml_factory
             " Source: feed_proxy releases") in caplog.text
 
 
-def test_rss_feed_posts_parser_source_with_custom_url_field(source_data, feed_xml_factory):
-    source_data['url_field'] = 'custom_field'
-    parsed_posts = parser_func(Source(**source_data), feed_xml_factory('regular'))
+def test_rss_feed_posts_parser_source_with_custom_url_field(factory, feed_xml_factory):
+    source = factory.source(url_field='custom_field')
+    parsed_posts = parser_func(source, feed_xml_factory('regular'))
 
     assert parsed_posts[0].url == 'some value'
 

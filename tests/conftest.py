@@ -10,8 +10,9 @@ from sqlalchemy import create_engine
 from sqlalchemy_utils import create_database, drop_database
 
 from feed_proxy.conf import settings
-from feed_proxy.schema import Attachment, Author, Post, Source
+from feed_proxy.schema import Attachment, Author, Post
 from feed_proxy.utils import make_alembic_config
+from tests.factory import Factory
 
 
 @pytest.fixture()
@@ -104,31 +105,6 @@ def example_feed_server(httpserver, feed_xml):
 
 
 @pytest.fixture()
-def source_data():
-    return dict(
-        name='feed_proxy releases',
-        url='http://localhost:45432/feed.xml',
-        receiver='-1001234567890',
-        post_template='<a href="{url}">{title}</a>\n\n{source_tags}\n{post_tags}',
-        disable_link_preview=True,
-        tags=('hash', 'tag')
-    )
-
-
-@pytest.fixture()
-def source(source_data):
-    return Source(**source_data)
-
-
-@pytest.fixture()
-def error_source(source_data):
-    source_data['name'] = 'server error feed'
-    source_data['url'] = 'http://localhost:45432/500'
-    source_data['tags'] = tuple()
-    return Source(**source_data)
-
-
-@pytest.fixture()
 def posts(source):
     posts_ = namedtuple('posts', [
         'regular',
@@ -143,6 +119,7 @@ def posts(source):
         'wo_id',
         'wrong_date',
     ])
+
     return posts_(
         Post(id='regular', author='yakimka', authors=(Author(name='yakimka', href='', email=''),),
              url='https://github.com/yakimka/feed_proxy/releases/tag/100',
@@ -234,3 +211,13 @@ def mock_download_file(requests_mock):
     """
 
     return requests_mock.get(ANY, content=b'file content')
+
+
+@pytest.fixture()
+def factory():
+    return Factory
+
+
+@pytest.fixture()
+def source(factory):
+    return factory.source()
