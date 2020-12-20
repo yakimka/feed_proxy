@@ -28,7 +28,11 @@ fetched_item = namedtuple('fetched_item', 'source,status_code,text')
 # TODO retry on errors
 def fetch_text_for_source(source: Source) -> fetched_item:
     try:
-        res = requests.get(source.url)
+        headers = {
+            # http://www.useragentstring.com/index.php
+            'User-Agent': 'Mozilla/5.0 (X11; Linux ppc64le; rv:75.0) Gecko/20100101 Firefox/75.0'
+        }
+        res = requests.get(source.url, headers=headers)
     except RequestException:
         logger.exception(f"Can't fetch '{source.url}' from '{source.name}'")
         return fetched_item(source, None, '')
