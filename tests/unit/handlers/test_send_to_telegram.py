@@ -174,3 +174,14 @@ def test_send_audio_when_file_size_is_zero(m_download_file, m_open, handler, pos
         parse_mode='HTML',
         caption=post.message_text,
     )
+
+
+@patch.object(handlers, 'open')
+@patch.object(handlers.SendToTelegram, 'download_file', return_value='/mtmp/mfile')
+def test_send_audio_with_proxy_bot_suppress_key_error(m_download_file, m_open, handler, posts):
+    post = posts.audio_gt_20mb
+    handler.proxy_bot.send_audio.side_effect = KeyError
+
+    handler.send_audio(post)
+
+    handler.proxy_bot.send_audio.assert_called()
