@@ -32,8 +32,8 @@ def test_create_processed_one(migrated_sqlite_connection, posts):
     query = schema.processed_table.select()
     item = migrated_sqlite_connection.execute(query).fetchone()
 
-    assert item.source_name == 'aiohttp releases'
-    assert item.post_id == 'tag:github.com,2008:Repository/13258039/v3.7.3'
+    assert item.source_name == 'feed_proxy releases'
+    assert item.post_id == 'regular'
     assert item.created
 
 
@@ -45,16 +45,16 @@ def test_create_processed_many(migrated_sqlite_connection, posts_parsed):
     items = [(item.source_name, item.post_id) for item in res]
 
     assert items == [
-        ('aiohttp releases', 'tag:github.com,2008:Repository/13258039/v3.7.3'),
-        ('aiohttp releases', 'tag:github.com,2008:Repository/13258039/v3.7.2'),
-        ('aiohttp releases', 'tag:github.com,2008:Repository/13258039/v3.7.1'),
-        ('aiohttp releases', 'tag:github.com,2008:Repository/13258039/v3.7.0'),
-        ('aiohttp releases', 'tag:github.com,2008:Repository/13258039/v3.7.0b1'),
-        ('aiohttp releases', 'tag:github.com,2008:Repository/13258039/v3.7.0b0'),
-        ('aiohttp releases', 'tag:github.com,2008:Repository/13258039/v3.6.3'),
-        ('aiohttp releases', 'tag:github.com,2008:Repository/13258039/v4.0.0a1'),
-        ('aiohttp releases', 'tag:github.com,2008:Repository/13258039/v3.6.2'),
-        ('aiohttp releases', 'https://github.com/aio-libs/aiohttp/releases/tag/v3.6.2a2')]
+        ('feed_proxy releases', 'regular'),
+        ('feed_proxy releases', 'has_published'),
+        ('feed_proxy releases', 'wo_date'),
+        ('feed_proxy releases', 'wo_author'),
+        ('feed_proxy releases', 'has_tags'),
+        ('feed_proxy releases', 'audio_gt_20mb'),
+        ('feed_proxy releases', 'audio_lt_20mb'),
+        ('feed_proxy releases', 'audio_0b'),
+        ('feed_proxy releases', 'empty_author'),
+        ('feed_proxy releases', 'https://github.com/yakimka/feed_proxy/releases/tag/91')]
 
 
 def test_is_post_processed(migrated_sqlite_connection, posts):

@@ -1,0 +1,10 @@
+<entry>
+    <id>empty_author</id>
+    <updated>2019-10-09T17:05:13Z</updated>
+    <link rel="alternate" type="text/html"
+          href="https://github.com/yakimka/feed_proxy/releases/tag/92"/>
+    <title>feed_proxy 92 release</title>
+    <content type="html">Lorem ipsum dolor sit amet, consectetur adipisicing.&gt;</content>
+<!--    authors -> [{}]    -->
+    <dc:creator/>
+</entry>

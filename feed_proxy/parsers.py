@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 def parse_posts(fetched: List[fetched_item]) -> List[Post]:
     parsed = []
     for source, status, text in fetched:
-        if status and status >= 400:
+        if not status or status >= 400:
             msg = (f"Status code {status} when trying"
                    f" to fetch '{source.url}' from '{source.name}'. Text:\n{text}")
             logger.warning(msg)
@@ -47,7 +47,7 @@ def rss_feed_posts_parser(source: Source, text: str) -> List[Post]:  # noqa C901
             return datetime.fromtimestamp(mktime(parsed_time))
         # Example: Mon, 01 Jan 0001 00:00:00 +0000
         except ValueError:
-            logger.exception(f"Can't parse '{parsed_time}' to datetime. Source: {source.name}")
+            logger.warning(f"Can't parse '{parsed_time}' to datetime. Source: {source.name}")
             return None
 
     def get_author(entry):

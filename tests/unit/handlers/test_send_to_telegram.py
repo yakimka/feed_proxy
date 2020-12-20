@@ -129,8 +129,8 @@ def test_send_audio_when_file_less_then_20mb(handler, posts):
     handler.bot.send_audio.assert_called_once_with(
         chat_id='-1001234567890',
         audio='http://localhost:45432/song.mp3',
-        performer='asvetlov',
-        title='v3.6.3',
+        performer='yakimka',
+        title='feed_proxy 94 release',
         parse_mode='HTML',
         caption=post.message_text,
     )
@@ -149,8 +149,8 @@ def test_send_audio_when_file_great_then_20mb(m_download_file, m_open, handler, 
         audio=m_open().__enter__(),
         timeout=ANY,
         chat_id='-1001234567890',
-        performer='asvetlov',
-        title='v3.7.0b0',
+        performer='yakimka',
+        title='feed_proxy 95 release',
         parse_mode='HTML',
         caption=post.message_text,
     )
@@ -169,8 +169,19 @@ def test_send_audio_when_file_size_is_zero(m_download_file, m_open, handler, pos
         audio=m_open().__enter__(),
         timeout=ANY,
         chat_id='-1001234567890',
-        performer='asvetlov',
-        title='v4.0.0a1',
+        performer='yakimka',
+        title='feed_proxy 93 release',
         parse_mode='HTML',
         caption=post.message_text,
     )
+
+
+@patch.object(handlers, 'open')
+@patch.object(handlers.SendToTelegram, 'download_file', return_value='/mtmp/mfile')
+def test_send_audio_with_proxy_bot_suppress_key_error(m_download_file, m_open, handler, posts):
+    post = posts.audio_gt_20mb
+    handler.proxy_bot.send_audio.side_effect = KeyError
+
+    handler.send_audio(post)
+
+    handler.proxy_bot.send_audio.assert_called()

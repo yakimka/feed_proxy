@@ -7,10 +7,14 @@ from feed_proxy import __main__ as dunder_main
 
 
 @pytest.fixture()
-def mock_fetch_sources(mocker: MockerFixture, source, feed_xml, error_source):
+def mock_fetch_sources(mocker: MockerFixture, factory, feed_xml):
     m_fetch_sources = mocker.patch.object(dunder_main, 'fetch_sources')
+    error_source = factory.source(
+        name='server error feed',
+        url='http://localhost:45432/500',
+    )
     m_fetch_sources.return_value = [
-        (source, 200, feed_xml),
+        (factory.source(), 200, feed_xml),
         (error_source, 500, 'Server error')
     ]
 
@@ -20,7 +24,6 @@ def mock_fetch_sources(mocker: MockerFixture, source, feed_xml, error_source):
 def test_main(
         mock_fetch_sources,
         mocker: MockerFixture,
-        source,
         feed_xml,
         migrated_sqlite_connection
 ):
