@@ -33,6 +33,21 @@ def test_check_processed_until_first_match(
     assert handler(posts_parsed) == posts_parsed[:3]
 
 
+def test_check_all_processed_when_set_flag(
+        migrated_sqlite_connection, handler, factory
+):
+    source = factory.source(check_processed_until_first_match=False)
+    post1 = factory.post(id='post1', source=source)
+    post2 = factory.post(id='post2', source=source)
+    post3 = factory.post(id='post3', source=source)
+    post4 = factory.post(id='post4', source=source)
+    posts_parsed = [post1, post2, post3, post4]
+
+    schema.create_processed(migrated_sqlite_connection, post2)
+
+    assert handler(posts_parsed) == [post1, post3, post4]
+
+
 def test_no_posts_for_process(
         migrated_sqlite_connection, handler, posts_parsed
 ):

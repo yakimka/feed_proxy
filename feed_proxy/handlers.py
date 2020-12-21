@@ -12,7 +12,6 @@ from feed_proxy.conf import settings
 from feed_proxy.db import schema
 from feed_proxy.schema import Attachment, Post
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -48,15 +47,14 @@ class FilterProcessed:
         not_processed = []
 
         source_mapping = make_source_mapping(parsed_posts)
-        for _, posts in source_mapping.items():
-            new_posts = []
+        for source, posts in source_mapping.items():
             for post in posts:  # posts is always list with at least 1 element
-                # if post processed - not check other posts for source
                 if schema.is_post_processed(self.conn, post):
-                    break
-                new_posts.append(post)
-            if new_posts:
-                not_processed.extend(new_posts)
+                    if source.check_processed_until_first_match:
+                        break
+                    else:
+                        continue  # pragma: no cover https://github.com/nedbat/coveragepy/issues/198
+                not_processed.append(post)
         return not_processed
 
 

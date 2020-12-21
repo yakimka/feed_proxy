@@ -11,8 +11,8 @@ from sqlalchemy_utils import create_database, drop_database
 
 from feed_proxy.conf import settings
 from feed_proxy.schema import Attachment, Author, Post
+from feed_proxy.test.factory import Factory
 from feed_proxy.utils import make_alembic_config
-from tests.factory import Factory
 
 
 @pytest.fixture()

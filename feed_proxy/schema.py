@@ -27,6 +27,7 @@ class Source:
     url: str
     receiver: str
     post_template: str
+    check_processed_until_first_match: bool = True
     disable_link_preview: bool = False
     tags: tuple = tuple()
     url_field: str = 'link'
