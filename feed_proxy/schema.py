@@ -30,6 +30,7 @@ class Source:
     check_processed_until_first_match: bool = True
     disable_link_preview: bool = False
     tags: tuple = tuple()
+    id_field: str = 'id'
     url_field: str = 'link'
     encoding: Optional[str] = None
 

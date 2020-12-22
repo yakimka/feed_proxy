@@ -61,6 +61,13 @@ def test_rss_feed_posts_parser_source_with_custom_url_field(factory, feed_xml_fa
     assert parsed_posts[0].url == 'some value'
 
 
+def test_rss_feed_posts_parser_source_with_custom_id_field(factory, feed_xml_factory):
+    source = factory.source(id_field='link')
+    parsed_posts = parser_func(source, feed_xml_factory('regular'))
+
+    assert parsed_posts[0].id == 'https://github.com/yakimka/feed_proxy/releases/tag/100'
+
+
 def test_rss_feed_posts_parser_unexpected_error(source, feed_xml_factory):
     with pytest.raises(ValueError, match="Can't process entry. Source: 'feed_proxy releases'"):
         parser_func(source, feed_xml_factory('wo_link'))
