@@ -2,6 +2,8 @@ import logging
 import os
 from argparse import ArgumentParser
 
+import sentry_sdk
+from sentry_sdk.integrations.logging import LoggingIntegration
 from sqlalchemy import create_engine
 
 from feed_proxy import handlers
@@ -33,6 +35,16 @@ HANDLERS = [
 
 
 def main():
+    sentry_logging = LoggingIntegration(
+        level=logging.INFO,  # Capture info and above as breadcrumbs
+        event_level=logging.ERROR  # Send errors as events
+    )
+    sentry_sdk.init(
+        dsn=os.getenv(f'{settings.ENV_PREFIX}SENTRY_DSN', None),
+        environment=os.getenv(f'{settings.ENV_PREFIX}SENTRY_ENVIRONMENT', None),
+        integrations=[sentry_logging]
+    )
+
     args = parser.parse_args()
 
     logging.basicConfig(level=args.log_level.upper())
