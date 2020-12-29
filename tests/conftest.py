@@ -14,6 +14,8 @@ from feed_proxy.schema import Attachment, Author, Post
 from feed_proxy.test.factory import Factory
 from feed_proxy.utils import make_alembic_config
 
+TESTS_PATH = os.path.dirname(__file__)
+
 
 @pytest.fixture()
 def sqlite():
@@ -53,22 +55,20 @@ def migrated_sqlite_connection(migrated_sqlite):
 @pytest.fixture(autouse=True, scope='session')
 def _setup_settings():
     settings.configure(
-        sources_path=os.path.join(settings.BASE_DIR, 'tests', 'sources.ini'),
+        sources_path=os.path.join(TESTS_PATH, 'sources.ini'),
         PROXY_BOT_URL='http://localhost:8081',
     )
 
 
 @pytest.fixture(scope='session')
 def feed_xml_factory():
-    base_path = os.path.dirname(__file__)
-
     def factory(*enties: str, base: str = 'feed_base'):
         feed_items = []
         for item in enties:
-            with open(os.path.join(base_path, 'fixtures', f'{item}.xml'), 'r') as fp:
+            with open(os.path.join(TESTS_PATH, 'fixtures', f'{item}.xml'), 'r') as fp:
                 feed_items.append(fp.read())
 
-        with open(os.path.join(base_path, 'fixtures', f'{base}.xml'), 'r') as fp:
+        with open(os.path.join(TESTS_PATH, 'fixtures', f'{base}.xml'), 'r') as fp:
             feed_base = fp.read()
 
         return feed_base.format(entries=''.join(feed_items))
@@ -117,7 +117,6 @@ def posts(source):
         'audio_0b',
         'empty_author',  # authors -> [{}]
         'wo_id',
-        'wrong_date',
     ])
 
     return posts_(
@@ -145,13 +144,13 @@ def posts(source):
              summary='Lorem ipsum dolor sit amet, consectetur adipisicing.>',
              title='feed_proxy 97 release',
              source=source, tags=(), attachments=(),
-             published=datetime(2020, 10, 24, 9, 39, 14)),
+             published=datetime(2020, 10, 24, 8, 39, 14)),
         Post(id='has_tags', author='yakimka', authors=(Author(name='yakimka', href='', email=''),),
              url='https://github.com/yakimka/feed_proxy/releases/tag/96',
              summary='Lorem ipsum dolor sit amet, consectetur adipisicing.>',
              title='feed_proxy 96 release',
              source=source, tags=('Python', 'агрегатор rss', 'feed proxy'),
-             attachments=(), published=datetime(2020, 10, 22, 15, 15, 1)),
+             attachments=(), published=datetime(2020, 10, 22, 14, 15, 1)),
         Post(id='audio_gt_20mb', author='yakimka',
              authors=(Author(name='yakimka', href='', email=''),),
              url='https://github.com/yakimka/feed_proxy/releases/tag/95',
@@ -159,7 +158,7 @@ def posts(source):
              title='feed_proxy 95 release',
              source=source, tags=(), attachments=(
                 Attachment(href='http://localhost:45432/song.mp3', type='audio/mpeg',
-                           length=21652106),), published=datetime(2020, 10, 21, 19, 54, 4)),
+                           length=21652106),), published=datetime(2020, 10, 21, 18, 54, 4)),
         Post(id='audio_lt_20mb', author='yakimka',
              authors=(Author(name='yakimka', href='', email=''),),
              url='https://github.com/yakimka/feed_proxy/releases/tag/94',
@@ -167,36 +166,28 @@ def posts(source):
              title='feed_proxy 94 release',
              source=source, tags=(), attachments=(
                 Attachment(href='http://localhost:45432/song.mp3', type='audio/mpeg',
-                           length=19999999),), published=datetime(2020, 10, 12, 11, 36, 15)),
+                           length=19999999),), published=datetime(2020, 10, 12, 10, 36, 15)),
         Post(id='audio_0b', author='yakimka', authors=(Author(name='yakimka', href='', email=''),),
              url='https://github.com/yakimka/feed_proxy/releases/tag/93',
              summary='Lorem ipsum dolor sit amet, consectetur adipisicing.>',
              title='feed_proxy 93 release',
              source=source, tags=(), attachments=(
                 Attachment(href='http://localhost:45432/song.mp3', type='audio/mpeg', length=0),),
-             published=datetime(2019, 10, 9, 12, 30, 4)),
+             published=datetime(2019, 10, 9, 11, 30, 4)),
         Post(id='empty_author', author='feed_proxy releases',
              authors=(Author(name='feed_proxy releases', href='', email=''),),
              url='https://github.com/yakimka/feed_proxy/releases/tag/92',
              summary='Lorem ipsum dolor sit amet, consectetur adipisicing.>',
              title='feed_proxy 92 release',
              source=source, tags=(), attachments=(),
-             published=datetime(2019, 10, 9, 18, 5, 13)),
+             published=datetime(2019, 10, 9, 17, 5, 13)),
         Post(id='https://github.com/yakimka/feed_proxy/releases/tag/91',
              author='yakimka', authors=(Author(name='yakimka', href='', email=''),),
              url='https://github.com/yakimka/feed_proxy/releases/tag/91',
              summary='Lorem ipsum dolor sit amet, consectetur adipisicing.>',
              title='feed_proxy 91 release',
              source=source, tags=(), attachments=(),
-             published=datetime(2019, 10, 9, 18, 4, 7)),
-
-        Post(id='wrong_date', author='yakimka',
-             authors=(Author(name='yakimka', href='', email=''),),
-             url='https://github.com/yakimka/feed_proxy/releases',
-             summary='Lorem ipsum dolor sit amet, consectetur adipisicing.>',
-             title='feed_proxy release',
-             source=source, tags=(), attachments=(),
-             published=None),
+             published=datetime(2019, 10, 9, 17, 4, 7)),
     )
 
 
