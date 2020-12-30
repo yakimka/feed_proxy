@@ -1,0 +1,18 @@
+name: whatsnew
+
+on:
+  push:
+    branches:
+      - "!*"
+    tags:
+      - "v*"
+
+jobs:
+  whatsnew:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Whats new
+        run: make whats-new

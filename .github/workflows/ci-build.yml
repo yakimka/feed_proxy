@@ -1,0 +1,15 @@
+name: build
+
+on: [ push, pull_request ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Build docker image
+        run: docker build --build-arg SKIP_TEST=true -t yakim/feed_proxy .
+      - name: Smoke test
+        run: "docker run --rm yakim/feed_proxy feed_proxy --help | grep 'usage: feed_proxy '"
