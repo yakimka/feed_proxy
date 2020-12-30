@@ -1,23 +1,42 @@
-### Builder ###
-FROM python:3.8 as builder
+### Development image ###
+FROM python:3.8 as development
 
-WORKDIR /usr/src/app
+ARG SKIP_TEST
+
+WORKDIR /code
+
+RUN pip install --upgrade pip
+# Copy requirements and install it for caching
+COPY requirements.txt requirements.dev.txt /
+# Install production requirements in prefix for use in production image
+RUN pip install -r /requirements.txt --no-warn-script-location --prefix=/install && \
+    # copy requirements to /usr/local and then install dev-requirements to handle conflicts
+    cp -r /install/* /usr/local && \
+    pip install -r /requirements.dev.txt --no-warn-script-location
+
 COPY . .
-RUN pip install wheel && pip wheel -r requirements.txt --wheel-dir=./wheels
-RUN pip wheel --wheel-dir=./wheels .
+# Install app in prefix for use in production image
+RUN pip install . --no-warn-script-location --no-deps --prefix=/install
 
-### Image ###
-FROM python:3.8-slim
+# Install app in editable mode for development
+# without dependencies, because they were installed in the previous steps
+RUN pip install -e '.[dev]' --no-deps
 
-ENV PATH /home/feed_proxy/.local/bin:$PATH
+# Run tests
+RUN if [ -z "$SKIP_TEST" ] ; then \
+        make lint && make test ; \
+    else echo "skip tests and linter" ; fi
 
-COPY --from=builder /usr/src/app/wheels /wheels
-RUN pip install --no-index --find-links=/wheels /wheels/*.whl  && rm -rf /wheels
+### Production image ###
+FROM python:3.8-slim as production
 
-RUN groupadd -r feed_proxy && useradd -r -g feed_proxy feed_proxy -m --uid 1000
+# Copy installed packages to /usr/local
+COPY --from=development /install /usr/local
 
-RUN mkdir -p /usr/src/app
-RUN chown feed_proxy:feed_proxy /usr/src/app
+RUN groupadd -r feed_proxy && \
+    useradd -r -g feed_proxy feed_proxy -m --uid 1000 && \
+    mkdir -p /usr/src/app && \
+    chown feed_proxy:feed_proxy /usr/src/app
 
 WORKDIR /usr/src/app
 
