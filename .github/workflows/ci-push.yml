@@ -1,0 +1,33 @@
+name: push
+
+on:
+  push:
+    branches:
+      - "!*"
+    tags:
+      - "v*"
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Get version
+        run: echo "VERSION=${GITHUB_REF:11}" >> $GITHUB_ENV
+      - name: Get short version
+        run: echo "SHORT_VERSION=${VERSION%.*}" >> $GITHUB_ENV
+
+      - name: Build docker image
+        run: docker build -t yakim/feed_proxy:latest -t yakim/feed_proxy:${VERSION} -t yakim/feed_proxy:${SHORT_VERSION} .
+      - name: Smoke test
+        run: "docker run --rm yakim/feed_proxy:latest feed_proxy --help | grep 'usage: feed_proxy '"
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: yakim
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Push images
+        run: docker push yakim/feed_proxy
