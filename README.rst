@@ -1,3 +1,5 @@
+|build| |coverage|
+
 FeedProxy
 =========
 
@@ -74,3 +76,9 @@ View logs
 .. code-block::
 
     journalctl -u docker CONTAINER_NAME=feed_proxy
+
+
+.. |build| image:: https://github.com/yakimka/feed_proxy/workflows/build/badge.svg
+    :target: https://github.com/yakimka/feed_proxy/actions
+.. |coverage| image:: https://codecov.io/gh/yakimka/feed_proxy/branch/master/graph/badge.svg?token=5YNW56XJQT
+    :target: https://codecov.io/gh/yakimka/feed_proxy
