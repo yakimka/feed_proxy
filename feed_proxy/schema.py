@@ -1,4 +1,5 @@
 import dataclasses
+import importlib
 import mimetypes
 import os
 from datetime import datetime
@@ -32,7 +33,13 @@ class Source:
     tags: tuple = tuple()
     id_field: str = 'id'
     url_field: str = 'link'
+    parser: str = 'rss_feed_posts_parser'
     encoding: Optional[str] = None
+
+    def parse(self, *args, **kwargs):
+        parsers = importlib.import_module('feed_proxy.parsers')
+        parser = getattr(parsers, self.parser)
+        return parser(self, *args, **kwargs)
 
     @cached_property
     def hash_tags(self) -> tuple:

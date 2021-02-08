@@ -1,6 +1,7 @@
 import json
 import logging
 from datetime import datetime
+from html.parser import HTMLParser
 from typing import List
 
 import feedparser
@@ -19,7 +20,7 @@ def parse_posts(fetched: List[fetched_item]) -> List[Post]:
                    f" to fetch '{source.url}' from '{source.name}'. Text:\n{text}")
             logger.warning(msg)
             continue
-        posts = rss_feed_posts_parser(source, text)
+        posts = source.parse(text)
         if not posts:
             msg = f"Can't find posts in '{source.url}' from '{source.name}'. Text:\n{text}"
             logger.warning(msg)
@@ -84,3 +85,42 @@ def rss_feed_posts_parser(source: Source, text: str) -> List[Post]:  # noqa C901
             raise ValueError(f"Can't process entry. Source: '{source.name}'\nEntry: {entry_}")
 
     return posts
+
+
+class GithubSearchParser(HTMLParser):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.results = []
+
+    def handle_starttag(self, tag, attrs):
+        attrs_mapping = dict(attrs)
+        if 'data-hydro-click' in attrs_mapping:
+            meta = json.loads(attrs_mapping['data-hydro-click'])
+            try:
+                is_repo = meta['payload']['result']['model_name'] == 'Repository'
+            except KeyError:
+                is_repo = False
+
+            if is_repo:
+                self.extract_data(meta['payload']['result'])
+
+    def extract_data(self, data):
+        url: str = data['url']
+        title = url.replace('https://github.com/', '')
+        author, repo_name = title.split('/', maxsplit=1)
+
+        self.results.append({
+            'author': author,
+            'authors': (Author(author),),
+            'id': url,
+            'url': url,
+            'summary': '',
+            'title': title,
+        })
+
+
+def github_search_parser(source: Source, text: str) -> List[Post]:
+    parser = GithubSearchParser()
+    parser.feed(text)
+
+    return [Post(source=source, **item) for item in parser.results]
