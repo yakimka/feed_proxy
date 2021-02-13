@@ -132,7 +132,7 @@ class SendToTelegram:
 
     @classmethod
     def download_file(cls, attachment: Attachment) -> str:
-        res = requests.get(attachment.href, allow_redirects=True)
+        res = requests.get(attachment.href, allow_redirects=True, timeout=(30, 15 * 60))
         with tempfile.NamedTemporaryFile(
                 suffix=attachment.guess_extension(), delete=False) as file:
             file.write(res.content)
