@@ -92,6 +92,11 @@ class GithubSearchParser(HTMLParser):
         super().__init__(*args, **kwargs)
         self.results = []
 
+    def __call__(self, source: Source, text: str) -> List[Post]:
+        self.feed(text)
+
+        return [Post(source=source, **item) for item in self.results]
+
     def handle_starttag(self, tag, attrs):
         attrs_mapping = dict(attrs)
         if 'data-hydro-click' in attrs_mapping:
@@ -119,8 +124,58 @@ class GithubSearchParser(HTMLParser):
         })
 
 
-def github_search_parser(source: Source, text: str) -> List[Post]:
-    parser = GithubSearchParser()
-    parser.feed(text)
+github_search_parser = GithubSearchParser()
 
-    return [Post(source=source, **item) for item in parser.results]
+
+class PiterBookParser(HTMLParser):
+    site_url = 'https://www.piter.com'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.find_book_block = False
+        self.handle_author = False
+        self.handle_title = False
+        self.current_book = {}
+        self.results = []
+
+    def __call__(self, source: Source, text: str) -> List[Post]:
+        self.feed(text)
+
+        return [Post(source=source, **item) for item in self.results]
+
+    def handle_starttag(self, tag, attrs):
+        attrs_mapping = dict(attrs)
+        classes = attrs_mapping.get('class', '')
+        if tag == 'div' and 'book-block' in classes:
+            self.find_book_block = True
+            return
+
+        if self.find_book_block:
+            if tag == 'a':
+                url = f"{self.site_url}{attrs_mapping.get('href', '')}"
+                self.current_book['url'] = url
+                self.current_book['id'] = url
+            elif tag == 'span' and 'author' in classes:
+                self.handle_author = True
+            elif tag == 'span' and 'title' in classes:
+                self.handle_title = True
+
+    def handle_endtag(self, tag):
+        if self.find_book_block and tag == 'div':
+            self.current_book['summary'] = ''
+            self.results.append(self.current_book)
+            self.current_book = {}
+            self.find_book_block = False
+
+    def handle_data(self, data):
+        if self.handle_author:
+            author = data.strip() or 'Unknown'
+            self.current_book['author'] = author
+            self.current_book['authors'] = (Author(author),)
+            self.handle_author = False
+        elif self.handle_title:
+            self.current_book['title'] = data
+            self.handle_title = False
+
+
+piter_book_parser = PiterBookParser()
