@@ -28,7 +28,7 @@ def parse_posts(fetched: List[fetched_item]) -> List[Post]:
     return parsed
 
 
-def rss_feed_posts_parser(source: Source, text: str) -> List[Post]:  # noqa C901
+def rss_feed_posts_parser(source: Source, text: str) -> List[Post]:  # noqa: C901
     posts = []
 
     if not text:
