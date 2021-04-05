@@ -179,3 +179,45 @@ class PiterBookParser(HTMLParser):
 
 
 piter_book_parser = PiterBookParser()
+
+
+class LunBuildingParser(HTMLParser):
+    site_url = 'https://lun.ua'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.is_building_url = False
+        self.current_building = {}
+        self.results = []
+
+    def __call__(self, source: Source, text: str) -> List[Post]:
+        self.feed(text)
+
+        return [Post(source=source, **item) for item in self.results]
+
+    def handle_starttag(self, tag, attrs):
+        attrs_mapping = dict(attrs)
+        classes = attrs_mapping.get('class', '')
+        if tag == 'a' and 'card-media' in classes:
+            self.is_building_url = True
+            url = f"{self.site_url}{attrs_mapping.get('href', '')}"
+            self.current_building['url'] = url
+            self.current_building['id'] = url
+            self.add_other_fields_to_data()
+        elif self.is_building_url and tag == 'img':
+            self.current_building['title'] = attrs_mapping.get('alt', '')
+
+    def handle_endtag(self, tag):
+        if self.is_building_url and tag == 'a':
+            self.is_building_url = False
+            self.results.append(self.current_building)
+            self.current_building = {}
+
+    def add_other_fields_to_data(self):
+        author = 'Unknown'
+        self.current_building['author'] = author
+        self.current_building['authors'] = (Author(author),)
+        self.current_building['summary'] = ''
+
+
+lun_building_parser = LunBuildingParser()
