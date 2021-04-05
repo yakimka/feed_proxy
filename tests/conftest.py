@@ -92,7 +92,7 @@ def feed_xml(feed_xml_factory):
     )
 
 
-@pytest.fixture()
+@pytest.fixture(scope='session')
 def httpserver_listen_address():
     return 'localhost', 45432
 
