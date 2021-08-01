@@ -21,11 +21,25 @@ def parse_posts(fetched: List[fetched_item]) -> List[Post]:
             logger.warning(msg)
             continue
         posts = source.parse(text)
+
+        if source.exclude_post_by_tags:
+            posts = _filter_posts_by_tags(posts, source.exclude_post_by_tags)
+
         if not posts:
             msg = f"Can't find posts in '{source.url}' from '{source.name}'. Text:\n{text}"
             logger.warning(msg)
         parsed.extend(posts)
     return parsed
+
+
+def _filter_posts_by_tags(posts, tags):
+    new_posts = []
+    exclude_tags = set(tags)
+    for post in posts:
+        tags = {tag.lower() for tag in post.tags}
+        if not tags & exclude_tags:
+            new_posts.append(post)
+    return new_posts
 
 
 def rss_feed_posts_parser(source: Source, text: str) -> List[Post]:  # noqa: C901

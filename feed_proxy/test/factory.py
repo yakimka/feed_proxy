@@ -34,6 +34,7 @@ class Factory:
             'post_template': '<a href="{url}">{title}</a>\n\n{source_tags}\n{post_tags}',
             'disable_link_preview': True,
             'tags': ('hash', 'tag'),
+            'exclude_post_by_tags': tuple(),
         }
 
         return Source(**{**defaults, **values})
