@@ -19,6 +19,7 @@ TYPES_MAPPING = {
 OPTIONS_MAPPING = {
     'post_template': 'gettemplate',
     'keys_mapping': 'getmapping',
+    'exclude_post_by_tags': 'getexcludepostbytags',
 }
 
 
@@ -35,6 +36,7 @@ class Source:
     url_field: str = 'link'
     parser: str = 'rss_feed_posts_parser'
     encoding: Optional[str] = None
+    exclude_post_by_tags: tuple = tuple()
 
     def parse(self, *args, **kwargs):
         parsers = importlib.import_module('feed_proxy.parsers')

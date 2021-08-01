@@ -26,6 +26,18 @@ def test_convert_template(string, expected):
     assert reader_class.convert_template(string) == expected
 
 
+@pytest.mark.parametrize('string,expected', [
+    ('tag1', ('tag1',)),
+    ('tag 1', ('tag 1',)),
+    ('tag1,tag2', ('tag1', 'tag2')),
+    ('tag1,tag 2', ('tag1', 'tag 2')),
+    ('таг с кириллицей', ('таг с кириллицей',)),
+    ('TAG with Uppercase', ('tag with uppercase',)),
+])
+def test_convert_excludepostbytags(string, expected):
+    assert reader_class.convert_excludepostbytags(string) == expected
+
+
 @pytest.fixture()
 def converters():
     """
@@ -34,6 +46,7 @@ def converters():
     return {
         'tuple': reader_class.convert_tuple,
         'template': reader_class.convert_template,
+        'excludepostbytags': reader_class.convert_excludepostbytags,
     }
 
 

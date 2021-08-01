@@ -66,3 +66,25 @@ def test_logger_message_when_cant_find_posts(source, mock_rss_feed_posts_parser,
     assert caplog.records[0].levelname == 'WARNING'
     assert ("Can't find posts in 'http://localhost:45432/feed.xml'"
             " from 'feed_proxy releases'. Text:\n") in caplog.text
+
+
+def test_filter_posts_on_exclude_post_by_tags(factory, posts, mock_rss_feed_posts_parser):
+    source = factory.source(exclude_post_by_tags=('python',))
+    fetched = (source, 200, 'some posts in xml')
+    mock_rss_feed_posts_parser.return_value = [posts.regular, posts.has_tags]
+    results = parse_posts_func([fetched])
+
+    assert results == [posts.regular]
+
+
+def test_dont_filter_posts_by_custom_source_tags(
+        factory,
+        posts,
+        mock_rss_feed_posts_parser
+):
+    source = factory.source(tags=('custom_tag',), exclude_post_by_tags=('custom_tag',))
+    fetched = (source, 200, 'some posts in xml')
+    mock_rss_feed_posts_parser.return_value = [posts.regular, posts.has_tags]
+    results = parse_posts_func([fetched])
+
+    assert results == [posts.regular, posts.has_tags]

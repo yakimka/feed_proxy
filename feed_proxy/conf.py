@@ -43,6 +43,10 @@ class ConfigReader:
     def convert_template(val: str) -> str:
         return val.replace('<br>', '\n')
 
+    @staticmethod
+    def convert_excludepostbytags(val: str) -> tuple:
+        return tuple(item.lower() for item in val.split(','))
+
 
 def get_sources(path: str) -> tuple:
     config = ConfigReader.read_from_file(path)
