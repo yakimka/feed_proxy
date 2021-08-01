@@ -5,7 +5,7 @@ __author__ = 'yakimka'
 __maintainer__ = __author__
 
 __email__ = 'ss.yakim@gmail.com'
-__version__ = '1.2.0'
+__version__ = '1.4.0'
 
 __all__ = (
     '__author__',
