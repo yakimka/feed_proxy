@@ -28,6 +28,13 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.10"
+pyyaml = "^6.0.2"
+dacite = "^1.8.1"
+feedparser = "^6.0.11"
+tldextract = "^5.1.3"
+sentry-sdk = "^2.18.0"
+httpx = "^0.27.2"
+aiogram = "^3.14.0"
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.13.0"

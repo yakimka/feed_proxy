@@ -1,0 +1,125 @@
+import os
+from dataclasses import dataclass
+from functools import partial
+from itertools import chain
+from pathlib import Path
+from typing import Any
+
+import yaml
+from dacite import exceptions, from_dict
+
+from feed_proxy.handlers import init_handlers_config
+
+
+def _yaml_string_constructor(self, node, env_prefix):
+    value = self.construct_yaml_str(node)
+    if value.startswith("ENV:"):
+        return os.environ[f"{env_prefix}{value[4:]}"].strip()
+    return value
+
+
+string_constructor = partial(_yaml_string_constructor, env_prefix="")
+yaml.Loader.add_constructor("tag:yaml.org,2002:str", string_constructor)
+yaml.SafeLoader.add_constructor("tag:yaml.org,2002:str", string_constructor)
+
+
+@dataclass
+class Receiver:
+    id: str
+    type: str
+    options: dict[str, Any]
+
+
+@dataclass
+class MessageTemplate:
+    id: str
+    template: str
+
+
+@dataclass
+class Modifier:
+    type: str
+    options: dict[str, Any]
+
+
+@dataclass
+class Stream:
+    receiver: Receiver
+    receiver_options: dict[str, Any]
+    intervals: list[str]
+    squash: bool
+    message_template: str | None
+    message_template_id: str | None
+    modifiers: list[Modifier]
+    active: bool
+
+
+@dataclass
+class Source:
+    id: str
+    fetcher_type: str
+    fetcher_options: dict[str, Any]
+    parser_type: str
+    parser_options: dict[str, Any]
+    tags: list[str]
+    streams: list[Stream]
+
+
+class LoadConfigurationError(Exception):
+    pass
+
+
+def load_configuration(path: Path) -> list[Source]:
+    configurations = {}
+    for file in chain(path.glob("*.yaml"), path.glob("*.yml")):
+        conf_parts = yaml.safe_load(file.read_text())
+        configurations |= conf_parts
+
+    try:
+        init_handlers_config(configurations.get("handlers", {}))
+
+        receivers = {}
+        for receiver_id, receiver in configurations.get("receivers", {}).items():
+            receiver["id"] = receiver_id
+            receivers[receiver_id] = from_dict(Receiver, receiver)
+
+        message_templates = {}
+        for msg_tmpl_id, msg_tmpl in configurations.get(
+            "message-templates", {}
+        ).items():
+            msg_tmpl["id"] = msg_tmpl_id
+            message_templates[msg_tmpl_id] = from_dict(MessageTemplate, msg_tmpl)
+
+        sources = []
+        for source_id, source in configurations.get("sources", {}).items():
+            source_streams = source.pop("streams", {})
+            for receiver_id, stream in source_streams.items():
+                stream["receiver"] = receivers.get(receiver_id)
+                if stream.get("message_template_id") and stream.get("message_template"):
+                    raise LoadConfigurationError(
+                        "Only one of message_template_id or "
+                        f"message_template can be set: {source_id}"
+                    )
+                if message_template_id := stream.get("message_template_id"):
+                    message_template = message_templates.get(message_template_id)
+                    if not message_template:
+                        raise LoadConfigurationError(
+                            f"Message template {message_template_id} "
+                            f"not found: {source_id}"
+                        )
+                    stream["message_template"] = message_template.template
+
+            source["id"] = source_id
+            source["streams"] = list(source_streams.values())
+            sources.append(from_dict(Source, source))
+    except (exceptions.DaciteError, LoadConfigurationError) as e:
+        print(e)
+        raise SystemExit(1)
+
+    return sources
+
+
+if __name__ == "__main__":
+    path = Path(__file__).parent.parent / "config"
+    res = load_configuration(path)
+    print(res)
