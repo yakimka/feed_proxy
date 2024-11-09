@@ -3,11 +3,11 @@ from dataclasses import dataclass
 from functools import partial
 from itertools import chain
 from pathlib import Path
-from typing import Any
 
 import yaml
 from dacite import exceptions, from_dict
 
+from feed_proxy.entities import Receiver, Source
 from feed_proxy.handlers import init_handlers_config
 
 
@@ -24,52 +24,16 @@ yaml.SafeLoader.add_constructor("tag:yaml.org,2002:str", string_constructor)
 
 
 @dataclass
-class Receiver:
-    id: str
-    type: str
-    options: dict[str, Any]
-
-
-@dataclass
 class MessageTemplate:
     id: str
     template: str
-
-
-@dataclass
-class Modifier:
-    type: str
-    options: dict[str, Any]
-
-
-@dataclass
-class Stream:
-    receiver: Receiver
-    receiver_options: dict[str, Any]
-    intervals: list[str]
-    squash: bool
-    message_template: str | None
-    message_template_id: str | None
-    modifiers: list[Modifier]
-    active: bool
-
-
-@dataclass
-class Source:
-    id: str
-    fetcher_type: str
-    fetcher_options: dict[str, Any]
-    parser_type: str
-    parser_options: dict[str, Any]
-    tags: list[str]
-    streams: list[Stream]
 
 
 class LoadConfigurationError(Exception):
     pass
 
 
-def load_configuration(path: Path) -> list[Source]:
+def load_configuration(path: Path) -> list[Source]:  # noqa: C901
     configurations = {}
     for file in chain(path.glob("*.yaml"), path.glob("*.yml")):
         conf_parts = yaml.safe_load(file.read_text())

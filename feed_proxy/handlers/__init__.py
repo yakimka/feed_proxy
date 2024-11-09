@@ -7,9 +7,9 @@ import pkgutil
 from collections import defaultdict
 from collections.abc import Callable
 from enum import Enum
-from functools import partial
+from functools import lru_cache, partial
 from inspect import isclass
-from typing import Any, NamedTuple, Optional, Type, TypedDict
+from typing import Any, NamedTuple, Optional, TypedDict
 
 from feed_proxy.entities import Post
 
@@ -176,6 +176,7 @@ def load_handlers() -> None:
         _load_modules(package)
 
 
+@lru_cache(maxsize=1)
 def get_registered_handlers() -> dict[str, dict[str, Handler]]:
     load_handlers()
 

@@ -1,8 +1,14 @@
+from __future__ import annotations
+
 import dataclasses
 import logging
+from typing import TYPE_CHECKING
 
-from feed_proxy.entities import Post
 from feed_proxy.handlers import HandlerOptions, HandlerType, register_handler
+
+if TYPE_CHECKING:
+    from feed_proxy.entities import Post
+
 
 logger = logging.getLogger(__name__)
 

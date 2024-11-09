@@ -74,7 +74,7 @@ def _handler(text: str) -> list[Post]:
             id_field = entry.keymap["guid"]
             posts.append(
                 Post(
-                    post_id=entry.get(id_field) or entry.link,
+                    post_id=entry.get(id_field) or _clean_post_id(entry.link),
                     title=entry.title,
                     url=entry.get("link"),
                     comments_url=entry.get("comments"),
@@ -87,3 +87,7 @@ def _handler(text: str) -> list[Post]:
             logger.exception("Failed to parse entry: %s", entry)
 
     return posts
+
+
+def _clean_post_id(post_id: str) -> str:
+    return post_id.removeprefix("https://").removeprefix("http://")

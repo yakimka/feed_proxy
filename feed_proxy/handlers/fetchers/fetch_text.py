@@ -2,7 +2,7 @@ import dataclasses
 import logging
 
 from feed_proxy.handlers import HandlerOptions, HandlerType, register_handler
-from feed_proxy.http_tools.core import domain_from_url, fetch_text_from_url
+from feed_proxy.logic import fetch_text_from_url
 
 logger = logging.getLogger(__name__)
 
