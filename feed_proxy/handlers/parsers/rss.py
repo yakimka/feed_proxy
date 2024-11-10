@@ -21,6 +21,9 @@ class Post(BasePost):
     post_tags: tuple | list
     source_tags: tuple | list
 
+    def __str__(self) -> str:
+        return self.title
+
     def template_kwargs(self):
         return {
             "post_id": self.post_id,

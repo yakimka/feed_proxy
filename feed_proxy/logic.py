@@ -1,12 +1,21 @@
+from __future__ import annotations
+
 import asyncio
 import copy
+import logging
+from typing import TYPE_CHECKING
 
 import httpx
 
 from feed_proxy.entities import Message, Modifier, Post, Source, Stream
 from feed_proxy.handlers import HandlerType, get_handler_by_name
 from feed_proxy.sentry.error_tracking import write_warn_message
-from feed_proxy.utils.http import DEFAULT_UA, logger
+from feed_proxy.utils.http import DEFAULT_UA
+
+if TYPE_CHECKING:
+    from feed_proxy.storage import PostStorage
+
+logger = logging.getLogger(__name__)
 
 
 async def fetch_text(source: Source) -> str:
@@ -48,16 +57,42 @@ async def apply_modifiers_to_posts(
     return posts
 
 
-async def parse_messages_from_posts(posts: list[Post], stream: Stream) -> list[Message]:
+async def parse_message_batches_from_posts(
+    posts: list[Post], source: Source, stream: Stream, post_storage: PostStorage
+) -> list[list[Message]]:
+    message_batches = []
+    key = (source.id, stream.receiver.id)
+    if not await post_storage.has_posts(key):
+        logger.info("First run for %s, skipping all posts", key)
+        all_posts = [post.post_id for post in posts]
+        await post_storage.mark_posts_as_processed(key, all_posts)
+        return message_batches
+
     messages = []
+    to_mark = []
     for post in posts:
-        message = Message(
-            post_id=post.post_id,
-            template=stream.message_template,
-            template_kwargs=post.template_kwargs(),
+        if await post_storage.is_post_processed(key, post.post_id):
+            continue
+        messages.append(
+            Message(
+                post_id=post.post_id,
+                template=stream.message_template,
+                template_kwargs=post.template_kwargs(),
+            )
         )
-        messages.append(message)
-    return messages
+        logger.info("New post %s for %s", post, key)
+        to_mark.append(post.post_id)
+    await post_storage.mark_posts_as_processed(key, to_mark)
+
+    if not messages:
+        logger.info("No new posts for %s", key)
+        return message_batches
+
+    if stream.squash:
+        message_batches.append(messages)
+    else:
+        message_batches.extend([message] for message in messages)
+    return message_batches
 
 
 async def send_messages(messages: list[Message], stream: Stream):

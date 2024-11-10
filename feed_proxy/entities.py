@@ -9,6 +9,9 @@ class Post(Protocol):
     post_id: str
     source_tags: tuple | list
 
+    def __str__(self) -> str:
+        raise NotImplementedError
+
     def template_kwargs(self) -> dict:
         raise NotImplementedError
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass
 from functools import partial
@@ -42,7 +43,7 @@ def load_configuration(path: Path) -> list[Source]:  # noqa: C901
     configurations = {}
     for file in chain(path.glob("*.yaml"), path.glob("*.yml")):
         conf_parts = yaml.safe_load(file.read_text())
-        configurations |= conf_parts
+        configurations |= json.loads(json.dumps(conf_parts))
 
     try:
         init_handlers_config(configurations.get("handlers", {}))
