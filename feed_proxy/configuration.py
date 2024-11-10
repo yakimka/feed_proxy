@@ -1,14 +1,19 @@
+from __future__ import annotations
+
 import os
 from dataclasses import dataclass
 from functools import partial
 from itertools import chain
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import yaml
 from dacite import exceptions, from_dict
 
 from feed_proxy.entities import Receiver, Source
 from feed_proxy.handlers import init_handlers_config
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _yaml_string_constructor(self, node, env_prefix):
@@ -80,10 +85,7 @@ def load_configuration(path: Path) -> list[Source]:  # noqa: C901
         print(e)
         raise SystemExit(1)
 
+    if not configurations:
+        raise LoadConfigurationError("No configuration files found")
+
     return sources
-
-
-if __name__ == "__main__":
-    path = Path(__file__).parent.parent / "config"
-    res = load_configuration(path)
-    print(res)

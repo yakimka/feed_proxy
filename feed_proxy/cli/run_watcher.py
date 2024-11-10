@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, NamedTuple, TypeAlias
 
 from feed_proxy.configuration import load_configuration
 from feed_proxy.logic import (
@@ -13,7 +13,7 @@ from feed_proxy.logic import (
 )
 
 if TYPE_CHECKING:
-    from feed_proxy.entities import Message, Post, Source, Stream  # noqa: TC004
+    from feed_proxy.entities import Message, Post, Source, Stream
 
 
 class TextUnit(NamedTuple):
@@ -31,10 +31,10 @@ class MessageUnit(NamedTuple):
     stream: Stream
 
 
-SourceQueue = asyncio.Queue[Source]
-TextQueue = asyncio.Queue[TextUnit]
-PostsQueue = asyncio.Queue[PostsUnit]
-MessagesQueue = asyncio.Queue[MessageUnit]
+SourceQueue: TypeAlias = asyncio.Queue["Source"]
+TextQueue: TypeAlias = asyncio.Queue[TextUnit]
+PostsQueue: TypeAlias = asyncio.Queue[PostsUnit]
+MessagesQueue: TypeAlias = asyncio.Queue[MessageUnit]
 
 
 async def main():
@@ -53,10 +53,12 @@ async def main():
 
 
 async def _enqueue_sources(source_queue: SourceQueue):
-    path = Path(__file__).parent.parent / "config"
-    sources = load_configuration(path)
-    for source in sources:
-        await source_queue.put(source)
+    while True:
+        path = Path(__file__).parent.parent.parent / "config"
+        sources = load_configuration(path)
+        for source in sources:
+            await source_queue.put(source)
+        await asyncio.sleep(60 * 30)
 
 
 async def _process_sources(source_queue: SourceQueue, text_queue: TextQueue):

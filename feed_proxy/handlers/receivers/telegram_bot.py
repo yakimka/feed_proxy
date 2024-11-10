@@ -7,7 +7,7 @@ from typing import Protocol
 from aiogram import Bot
 
 from feed_proxy.handlers import HandlerOptions, HandlerType, register_handler
-from feed_proxy.text import template_to_text
+from feed_proxy.utils.text import template_to_text
 
 logger = logging.getLogger(__name__)
 

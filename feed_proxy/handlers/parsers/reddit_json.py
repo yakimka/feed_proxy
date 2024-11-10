@@ -4,7 +4,7 @@ import logging
 
 from feed_proxy.entities import Post as BasePost
 from feed_proxy.handlers import HandlerType, register_handler
-from feed_proxy.text import make_hash_tags
+from feed_proxy.utils.text import make_hash_tags
 
 logger = logging.getLogger(__name__)
 
