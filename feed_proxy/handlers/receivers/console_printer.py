@@ -1,11 +1,10 @@
-import dataclasses
 import logging
 from functools import lru_cache
 from typing import Protocol
 
 from aiogram import Bot
 
-from feed_proxy.handlers import HandlerOptions, HandlerType, register_handler
+from feed_proxy.handlers import HandlerType, register_handler
 from feed_proxy.utils.text import template_to_text
 
 logger = logging.getLogger(__name__)
@@ -17,17 +16,6 @@ class Message(Protocol):
     template_kwargs: dict
 
 
-@dataclasses.dataclass
-class ConsolePrinterOptions(HandlerOptions):
-    DESCRIPTIONS = {
-        "chat_id": ("Chat ID", "Telegram chat id"),
-        "disable_link_preview": ("Disable link preview", ""),
-    }
-
-    chat_id: str
-    disable_link_preview: bool = False
-
-
 @lru_cache(maxsize=128)
 def _get_bot(token: str) -> Bot:
     return Bot(token=token)
@@ -36,7 +24,7 @@ def _get_bot(token: str) -> Bot:
 @register_handler(
     type=HandlerType.receivers.value,
     name="console_printer",
-    options=ConsolePrinterOptions,
+    options=None,
 )
 class ConsolePrinter:
     def __init__(self, name: str):
@@ -49,8 +37,6 @@ class ConsolePrinter:
     async def __call__(
         self,
         messages: list[Message],
-        *,
-        options: ConsolePrinterOptions,
     ) -> None:
         if not messages:
             return
@@ -66,10 +52,4 @@ class ConsolePrinter:
         if parts:
             parts.pop()
 
-        text = "".join(parts)
-        await self._send_message(message=text)
-
-    # @async_lock(key=_lock_key, wait_time=pause_between_send)
-    async def _send_message(self, message: str) -> None:
-        print(message)
-        logger.info("Sent message to %s", self._name)
+        print("".join(parts))
