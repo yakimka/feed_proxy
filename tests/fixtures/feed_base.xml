@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en-US">
-  <id>tag:github.com,2008:https://github.com/yakimka/feed_proxy/releases</id>
-  <link type="text/html" rel="alternate" href="https://github.com/yakimka/feed_proxy/releases"/>
-  <link type="application/atom+xml" rel="self" href="https://github.com/yakimka/feed_proxy/releases.atom"/>
-  <title>Release notes from feed_proxy</title>
-  <updated>2020-11-18T17:32:09Z</updated>
-  {entries}
-</feed>

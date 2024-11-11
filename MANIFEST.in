@@ -1,6 +1,0 @@
-include feed_proxy/alembic.ini
-include feed_proxy/db/alembic/*
-include feed_proxy/db/alembic/versions/*
-include README.rst
-include requirements.dev.txt
-include requirements.txt

@@ -1,43 +1,38 @@
-### Development image ###
-FROM python:3.8 as development
+FROM python:3.12.7-slim-bullseye as builder
 
-ARG SKIP_TEST
+ARG WHEEL=feed_proxy-0.1.0-py3-none-any.whl
+ENV VIRTUAL_ENV=/venv
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 WORKDIR /code
 
-RUN pip install --upgrade pip
-# Copy requirements and install it for caching
-COPY requirements.txt requirements.dev.txt /
-# Install production requirements in prefix for use in production image
-RUN pip install -r /requirements.txt --no-warn-script-location --prefix=/install && \
-    # copy requirements to /usr/local and then install dev-requirements to handle conflicts
-    cp -r /install/* /usr/local && \
-    pip install -r /requirements.dev.txt --no-warn-script-location
+RUN python -m venv $VIRTUAL_ENV
 
-COPY . .
-# Install app in prefix for use in production image
-RUN pip install . --no-warn-script-location --no-deps --prefix=/install
+# for caching purposes in CI
+# waiting for https://github.com/moby/buildkit/issues/1512
+# to replace with this:
+#COPY ./dist/$WHEEL ./$WHEEL
+#RUN --mount=type=cache,mode=0755,target=/root/.cache/pip \
+#    pip install --upgrade pip \
+#    && pip install --upgrade wheel \
+#    && pip install --upgrade ./$WHEEL
+COPY ./dist/requirements.txt ./
+RUN pip install --upgrade --no-cache-dir pip \
+    && pip install --upgrade --no-cache-dir wheel \
+    && pip install --upgrade --no-cache-dir -r requirements.txt
 
-# Install app in editable mode for development
-# without dependencies, because they were installed in the previous steps
-RUN pip install -e '.[dev]' --no-deps
+COPY ./dist/$WHEEL ./$WHEEL
+RUN pip install --upgrade --no-cache-dir ./$WHEEL --no-deps
 
-# Run tests
-RUN if [ -z "$SKIP_TEST" ] ; then \
-        make lint && make test ; \
-    else echo "skip tests and linter" ; fi
 
-### Production image ###
-FROM python:3.8-slim as production
+FROM python:3.12.7-slim-bullseye as production
 
-# Copy installed packages to /usr/local
-COPY --from=development /install /usr/local
+RUN useradd -M appuser --uid=1000 --shell=/bin/false
+USER appuser
 
-RUN groupadd -r feed_proxy && \
-    useradd -r -g feed_proxy feed_proxy -m --uid 1000 && \
-    mkdir -p /usr/src/app && \
-    chown feed_proxy:feed_proxy /usr/src/app
+ENV VIRTUAL_ENV=/venv
+ENV PATH="/venv/bin:$PATH"
+WORKDIR /opt/app
+COPY --from=builder $VIRTUAL_ENV $VIRTUAL_ENV
 
-WORKDIR /usr/src/app
-
-USER feed_proxy
+CMD ["python"]

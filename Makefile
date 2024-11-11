@@ -1,54 +1,73 @@
+SHELL:=/usr/bin/env bash
+
+RUN=docker compose run --rm --remove-orphans -it devtools
+
 .PHONY: all
 all: help
 
-COMMITS_COUNT := 30
+.PHONY: pre-commit
+pre-commit:  ## Run pre-commit with args
+	$(RUN) poetry run pre-commit $(args)
 
-.PHONY: whats-new
-whats-new: ## Get info about last tag
-	$(eval LAST_TAG := $(shell git describe --abbrev=0 --tags))
-	$(eval PREV_TAG := $(shell git describe --abbrev=0 --tags $(LAST_TAG)^ 2>/dev/null || [ ]))
-	$(eval TAGS := $(if $(PREV_TAG),$(PREV_TAG)..$(LAST_TAG),$(LAST_TAG)))
-	$(eval NUMBER_OF_COMMITS := $(shell git rev-list --count --no-merges $(TAGS)))
-	@echo ""
-	@echo "Since the last release there have been $(NUMBER_OF_COMMITS) commit(s). \
-	The descriptions for the first (at most) $(COMMITS_COUNT) of these are as follows"
-	@echo ""
-	@git --no-pager log $(TAGS) --pretty=format:'- %s' --no-merges | head -n $(COMMITS_COUNT)
-	@echo ""
-
-.PHONY: flake
-flake: ## Run flake8
-	flake8 --statistics --count .
-
-.PHONY: test
-test: ## Run tests
-	# Running tests:
-	pytest --cov --timeout 5
-	# Check dead or dup fixtures
-	pytest --dead-fixtures --dup-fixtures
+.PHONY: poetry
+poetry:  ## Run poetry with args
+	$(RUN) poetry $(args)
 
 .PHONY: lint
-lint: flake ## Run all linters
+lint:  ## Run flake8, mypy, other linters and verify formatting
+	@make pre-commit args="run --all-files"; \
+	RESULT1=$$?; \
+	make mypy; \
+	RESULT2=$$?; \
+	exit $$((RESULT1 + RESULT2))
+
+.PHONY: mypy
+mypy:  ## Run mypy
+	$(RUN) poetry run mypy $(args)
+
+.PHONY: test
+test:  ## Run tests
+	$(RUN) poetry run pytest --cov=tests --cov=feed_proxy $(args)
+	$(RUN) poetry run pytest --dead-fixtures
+
+.PHONY: package
+package:  ## Run packages (dependencies) checks
+	$(RUN) poetry check
+	$(RUN) poetry run pip check
+
+.PHONY: build-package
+build-package:  ## Build package
+	$(RUN) poetry build $(args)
+	$(RUN) poetry export --format=requirements.txt --output=dist/requirements.txt
+
+.PHONY: build-production-image
+build-production-image:  ## Build production image
+	build-package
+	docker build -t feed_proxy:prod .
+
+.PHONY: checks
+checks: lint package test  ## Run linting and tests
+
+.PHONY: run-ci
+run-ci:  ## Run CI locally
+	$(RUN) ./ci.sh
 
 .PHONY: clean
-clean: clean-dist clean-pyc  ## Clean project
+clean:  ## Clean up
+	rm -rf dist
+	rm -rf htmlcov
+	rm -f .coverage coverage.xml
 
-.PHONY: clean-dist
-clean-dist:  ## Clean dist files
-	rm -fr *.egg-info dist build
+.PHONY: clean-all
+clean-all:  ## Clean up all
+	@make clean
+	rm -rf .cache
+	rm -rf .mypy_cache
+	rm -rf .pytest_cache
 
-.PHONY: clean-pyc
-clean-pyc:  ## Clean pycache files
-	find -name "*.pyc" -delete
-	find -name "__pycache__" -delete
-
-.PHONY: installdev
-installdev: clean  ## Install dev
-	pip install -Ue '.[dev]'
-
-.PHONY: sdist
-sdist: clean  ## Create a source distribution
-	python setup.py sdist
+.PHONY: bash
+bash:  ## Run bash
+	$(RUN) bash $(args)
 
 .PHONY: help
 help:
