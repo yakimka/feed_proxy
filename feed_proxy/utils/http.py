@@ -13,5 +13,5 @@ DEFAULT_UA = (
 
 @lru_cache(maxsize=None)
 def domain_from_url(url: str):
-    _, td, tsu = tldextract.extract(url)
-    return f"{td}.{tsu}"
+    result = tldextract.extract(url)
+    return result.fqdn

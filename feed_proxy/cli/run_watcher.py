@@ -57,7 +57,7 @@ async def main():
 
     await asyncio.gather(
         _enqueue_sources(source_queue),
-        _process_sources(source_queue, text_queue),
+        *[_process_sources(i, source_queue, text_queue) for i in range(1, 10)],
         _process_text(text_queue, post_queue),
         _process_posts(post_queue, outbox_queue, post_storage),
         _send_messages(outbox_queue),
@@ -73,8 +73,9 @@ async def _enqueue_sources(source_queue: SourceQueue):
         await asyncio.sleep(60 * 30)
 
 
-async def _process_sources(source_queue: SourceQueue, text_queue: TextQueue):
+async def _process_sources(i: int, source_queue: SourceQueue, text_queue: TextQueue):
     while source := await source_queue.get():
+        logging.info("Worker %s processing %s (fetch_text)", i, source.id)
         text = await fetch_text(source)
         await text_queue.put(TextUnit(text=text, source=source))
         source_queue.task_done()
