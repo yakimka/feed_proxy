@@ -27,8 +27,8 @@ class PostStorage(Protocol):
 
 
 class MemoryPostStorage:
-    def __init__(self):
-        self._data = {}
+    def __init__(self) -> None:
+        self._data: dict[str, set[str]] = {}
 
     async def has_posts(self, key: Stringable) -> bool:
         return bool(self._data.get(str(key)))
@@ -61,8 +61,8 @@ class MessagesOutbox(Protocol):
 
 
 class MemoryMessagesOutbox:
-    def __init__(self):
-        self._queue = []
+    def __init__(self) -> None:
+        self._queue: list[OutboxItem] = []
 
     async def put(self, item: OutboxItem) -> None:
         self._queue.append(item)

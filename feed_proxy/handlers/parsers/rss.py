@@ -2,18 +2,19 @@ import asyncio
 import dataclasses
 import json
 import logging
+from typing import Any
 
 import feedparser
 
-from feed_proxy.entities import Post as BasePost
-from feed_proxy.handlers import HandlerType, register_handler
+from feed_proxy.entities import Post
+from feed_proxy.handlers import HandlerOptions, HandlerType, register_handler
 from feed_proxy.utils.text import make_hash_tags
 
 logger = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass()
-class Post(BasePost):
+class FeedPost(Post):
     post_id: str
     title: str
     url: str
@@ -24,7 +25,7 @@ class Post(BasePost):
     def __str__(self) -> str:
         return self.title
 
-    def template_kwargs(self):
+    def template_kwargs(self) -> dict[str, Any]:
         return {
             "post_id": self.post_id,
             "title": self.title,
@@ -52,16 +53,18 @@ class Post(BasePost):
 
 @register_handler(
     type=HandlerType.parsers.value,
-    return_fields_schema=Post.fields_schema(),
-    return_model=Post,
+    return_fields_schema=FeedPost.fields_schema(),
+    return_model=FeedPost,
 )
-async def rss(text: str, *, options=None) -> list[Post]:  # noqa: U100
+async def rss(
+    text: str, *, options: HandlerOptions | None = None  # noqa: U100
+) -> list[FeedPost]:
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, _handler, text)
 
 
-def _handler(text: str) -> list[Post]:
-    posts: list[Post] = []
+def _handler(text: str) -> list[FeedPost]:
+    posts: list[FeedPost] = []
 
     if not text:
         return posts
@@ -76,7 +79,7 @@ def _handler(text: str) -> list[Post]:
         try:
             id_field = entry.keymap["guid"]
             posts.append(
-                Post(
+                FeedPost(
                     post_id=entry.get(id_field) or _clean_post_id(entry.link),
                     title=entry.title,
                     url=entry.get("link"),

@@ -1,6 +1,3 @@
-import json
-from typing import IO
-
 from feed_proxy.handlers import HandlerType, get_registered_handlers
 
 
@@ -19,7 +16,3 @@ def parse_configuration() -> dict:
         ]
 
     return results
-
-
-def write_configuration(fp: IO[str], configuration: dict):
-    json.dump(configuration, fp, indent=2)

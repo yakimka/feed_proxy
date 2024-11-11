@@ -47,7 +47,7 @@ PostsQueue: TypeAlias = asyncio.Queue[PostsUnit]
 MessagesQueue: TypeAlias = asyncio.Queue[MessageUnit]
 
 
-async def main():
+async def main() -> None:
     logging.basicConfig(level=logging.INFO)
     source_queue: SourceQueue = asyncio.Queue()
     text_queue: TextQueue = asyncio.Queue()
@@ -64,7 +64,7 @@ async def main():
     )
 
 
-async def _enqueue_sources(source_queue: SourceQueue):
+async def _enqueue_sources(source_queue: SourceQueue) -> None:
     while True:
         path = Path(__file__).parent.parent.parent / "config"
         sources = load_configuration(path)
@@ -73,7 +73,9 @@ async def _enqueue_sources(source_queue: SourceQueue):
         await asyncio.sleep(60 * 30)
 
 
-async def _process_sources(i: int, source_queue: SourceQueue, text_queue: TextQueue):
+async def _process_sources(
+    i: int, source_queue: SourceQueue, text_queue: TextQueue
+) -> None:
     while source := await source_queue.get():
         logging.info("Worker %s processing %s (fetch_text)", i, source.id)
         text = await fetch_text(source)
@@ -81,7 +83,7 @@ async def _process_sources(i: int, source_queue: SourceQueue, text_queue: TextQu
         source_queue.task_done()
 
 
-async def _process_text(text_queue: TextQueue, post_queue: PostsQueue):
+async def _process_text(text_queue: TextQueue, post_queue: PostsQueue) -> None:
     while text_unit := await text_queue.get():
         parsed_posts = await parse_posts(text_unit.source, text_unit.text)
         for stream, posts in parsed_posts:
@@ -93,7 +95,7 @@ async def _process_text(text_queue: TextQueue, post_queue: PostsQueue):
 
 async def _process_posts(
     post_queue: PostsQueue, outbox_queue: MessagesOutbox, post_storage: PostStorage
-):
+) -> None:
     while posts_unit := await post_queue.get():
         message_batches = await parse_message_batches_from_posts(
             posts_unit.posts,
@@ -110,7 +112,7 @@ async def _process_posts(
         post_queue.task_done()
 
 
-async def _send_messages(outbox_queue: MessagesOutbox):
+async def _send_messages(outbox_queue: MessagesOutbox) -> None:
     while outbox_item := await outbox_queue.get():
         await send_messages(outbox_item.messages, outbox_item.stream)
         await outbox_queue.commit(outbox_item.id)

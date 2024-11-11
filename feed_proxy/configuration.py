@@ -5,7 +5,7 @@ import os
 from dataclasses import dataclass
 from functools import partial
 from itertools import chain
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import yaml
 from dacite import exceptions, from_dict
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _yaml_string_constructor(self, node, env_prefix):
+def _yaml_string_constructor(self: Any, node: Any, env_prefix: Any) -> Any:
     value = self.construct_yaml_str(node)
     if value.startswith("ENV:"):
         return os.environ[f"{env_prefix}{value[4:]}"].strip()
@@ -40,7 +40,7 @@ class LoadConfigurationError(Exception):
 
 
 def load_configuration(path: Path) -> list[Source]:  # noqa: C901
-    configurations = {}
+    configurations: dict[str, dict] = {}
     for file in chain(path.glob("*.yaml"), path.glob("*.yml")):
         conf_parts = yaml.safe_load(file.read_text())
         configurations |= json.loads(json.dumps(conf_parts))

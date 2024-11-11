@@ -2,6 +2,7 @@ import asyncio
 import dataclasses
 import logging
 import time
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from feed_proxy.handlers import HandlerOptions, HandlerType, register_handler
@@ -47,7 +48,9 @@ class _RequestsLimiter:
         self.locks: dict[str, asyncio.Lock] = {}
 
     @asynccontextmanager
-    async def __call__(self, url: str, pause_between_domain_calls_sec: float):
+    async def __call__(
+        self, url: str, pause_between_domain_calls_sec: float
+    ) -> AsyncIterator[None]:
         domain = domain_from_url(url)
         lock = self.locks.setdefault(domain, asyncio.Lock())
         async with lock:

@@ -90,7 +90,7 @@ class TelegramBot:
     ) -> None:
         await self.bot.send_message(
             chat_id=chat_id,
-            message_thread_id=message_thread_id,
+            message_thread_id=int(message_thread_id) if message_thread_id else None,
             text=message,
             parse_mode="HTML",
             disable_web_page_preview=disable_link_preview,

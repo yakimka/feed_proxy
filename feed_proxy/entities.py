@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
@@ -20,7 +22,7 @@ class Post(Protocol):
         raise NotImplementedError
 
     @classmethod
-    def from_dict(cls, data: dict):
+    def from_dict(cls, data: dict) -> Post:
         return from_dict(cls, data=data)
 
 

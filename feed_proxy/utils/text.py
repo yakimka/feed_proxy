@@ -1,6 +1,7 @@
 import re
 import string
 from collections.abc import Iterable
+from typing import Any
 
 only_letters_and_underscore = re.compile(r"[^a-zA-Zа-яА-Я0-9_ёЁіІїЇґҐєЄ]")
 multiple_underscores = re.compile(r"_+")
@@ -15,6 +16,6 @@ def make_hash_tags(tags: Iterable[str]) -> list[str]:
     return hash_tags
 
 
-def template_to_text(template_string: str, **kwargs) -> str:
+def template_to_text(template_string: str, **kwargs: Any) -> str:
     template = string.Template(template_string)
     return template.safe_substitute(kwargs)

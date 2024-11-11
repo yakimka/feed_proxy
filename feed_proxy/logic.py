@@ -60,7 +60,7 @@ async def apply_modifiers_to_posts(
 async def parse_message_batches_from_posts(
     posts: list[Post], source: Source, stream: Stream, post_storage: PostStorage
 ) -> list[list[Message]]:
-    message_batches = []
+    message_batches: list[list[Message]] = []
     key = (source.id, stream.receiver.id)
     if not await post_storage.has_posts(key):
         logger.info("First run for %s, skipping all posts", key)
@@ -73,6 +73,7 @@ async def parse_message_batches_from_posts(
     for post in posts:
         if await post_storage.is_post_processed(key, post.post_id):
             continue
+        assert stream.message_template, "Stream message template is not set"
         messages.append(
             Message(
                 post_id=post.post_id,
@@ -95,7 +96,7 @@ async def parse_message_batches_from_posts(
     return message_batches
 
 
-async def send_messages(messages: list[Message], stream: Stream):
+async def send_messages(messages: list[Message], stream: Stream) -> None:
     receiver = get_handler_by_name(
         name=stream.receiver.type,
         type=HandlerType.receivers.value,
@@ -107,7 +108,9 @@ async def send_messages(messages: list[Message], stream: Stream):
     await receiver(messages)
 
 
-async def fetch_text_from_url(url: str, *, encoding="", retry=0) -> str | None:
+async def fetch_text_from_url(
+    url: str, *, encoding: str = "", retry: int = 0
+) -> str | None:
     # TODO don't fetch if content is not changed
     async with httpx.AsyncClient(
         follow_redirects=True, verify=False, timeout=30  # noqa: S501

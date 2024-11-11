@@ -9,9 +9,12 @@ from collections.abc import Callable
 from enum import Enum
 from functools import lru_cache, partial
 from inspect import isclass
-from typing import Any, NamedTuple, Optional, TypedDict
+from typing import TYPE_CHECKING, Any, NamedTuple, Optional, TypedDict
 
 from feed_proxy.entities import Post
+
+if TYPE_CHECKING:
+    from types import ModuleType
 
 __all__ = [
     "get_registered_handlers",
@@ -68,8 +71,10 @@ class HandlerOptions:
             extra_properties = {}
             is_enum = isclass(field.type) and issubclass(field.type, Enum)
             if is_enum:
-                field_type = _get_enum_values_type(field.type)
-                extra_properties["enum"] = [field.value for field in field.type]
+                field_type = _get_enum_values_type(field.type)  # type: ignore[arg-type]
+                extra_properties["enum"] = [
+                    field.value for field in field.type  # type: ignore[union-attr]
+                ]
             schema["properties"][field.name] = {
                 **extra_properties,
                 "type": _python_type_to_json_schema_type(field_type),
@@ -111,7 +116,7 @@ HANDLERS: dict[str, dict[str, RawHandler]] = defaultdict(dict)
 HANDLERS_CONFIG: dict = {}
 
 
-def init_handlers_config(config: dict):
+def init_handlers_config(config: dict) -> None:
     global HANDLERS_CONFIG
     if not HANDLERS_CONFIG:
         HANDLERS_CONFIG = config.copy()
@@ -123,8 +128,8 @@ def register_handler(
     options: type[HandlerOptions] | None = None,
     return_fields_schema: dict | None = None,
     return_model: ReturnModel | None = None,
-):
-    def wrapper(func_or_class):
+) -> Callable:
+    def wrapper(func_or_class: Callable) -> Any:
         if type == HandlerType.parsers.value and not return_model:
             raise ValueError("Parsers must be registered with return_model")
 
@@ -202,12 +207,13 @@ def get_registered_handlers() -> dict[str, dict[str, Handler]]:
     return result
 
 
-def _load_modules(package) -> None:
+def _load_modules(package: ModuleType) -> None:
     for module_name in _parse_modules(package):
         importlib.import_module(f".{module_name}", package=package.__name__)
 
 
-def _parse_modules(package) -> list[str]:
+def _parse_modules(package: ModuleType) -> list[str]:
+    assert package.__file__ is not None
     pkgpath = os.path.dirname(package.__file__)
     return [name for _, name, _ in pkgutil.iter_modules([pkgpath])]
 

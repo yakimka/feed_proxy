@@ -31,9 +31,6 @@ class ConsolePrinter:
         print("ConsolePrinter.__init__")
         self._name = name
 
-    def _lock_key(self, *_, **__):
-        return self._name
-
     async def __call__(
         self,
         messages: list[Message],
@@ -43,12 +40,8 @@ class ConsolePrinter:
         parts: list[str] = []
         delimiter = "\n-----\n"
         for message in messages:
-            parts.extend(
-                (
-                    template_to_text(message.template, **message.template_kwargs),
-                    delimiter,
-                )
-            )
+            parts.append(template_to_text(message.template, **message.template_kwargs))
+            parts.append(delimiter)
         if parts:
             parts.pop()
 
