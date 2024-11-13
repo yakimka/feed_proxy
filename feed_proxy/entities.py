@@ -18,10 +18,6 @@ class Post(Protocol):
         raise NotImplementedError
 
     @classmethod
-    def fields_schema(cls) -> dict:
-        raise NotImplementedError
-
-    @classmethod
     def from_dict(cls, data: dict) -> Post:
         return from_dict(cls, data=data)
 

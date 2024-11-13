@@ -9,7 +9,7 @@ from collections.abc import Callable
 from enum import Enum
 from functools import partial
 from inspect import isclass
-from typing import TYPE_CHECKING, Any, NamedTuple, TypedDict
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from dacite import Config, DaciteError, from_dict
 
@@ -40,61 +40,7 @@ class HandlerType(Enum):
 
 @dataclasses.dataclass
 class HandlerOptions:
-    DESCRIPTIONS = {}  # type: dict[str, tuple[str, str]]
-
-    @classmethod
-    def _descriptions(cls) -> dict[str, tuple[str, str]]:
-        return {
-            field.name: cls.DESCRIPTIONS[field.name]
-            for field in dataclasses.fields(cls)
-            if field.name in cls.DESCRIPTIONS
-        }
-
-    @classmethod
-    def field_title(cls, field_name: str) -> str:
-        title = 0
-        return cls._descriptions().get(field_name, ("", ""))[title]
-
-    @classmethod
-    def field_description(cls, field_name: str) -> str:
-        description = 1
-        return cls._descriptions().get(field_name, ("", ""))[description]
-
-    @classmethod
-    def to_json_schema(cls) -> Schema:
-        schema: Schema = {
-            "$schema": "https://json-schema.org/draft/2020-12/schema",
-            "title": type(cls).__name__,
-            "type": "object",
-            "properties": {},
-            "required": [],
-        }
-        for field in dataclasses.fields(cls):
-            m = dataclasses.MISSING
-            field_type = field.type
-            extra_properties = {}
-            is_enum = isclass(field.type) and issubclass(field.type, Enum)
-            if is_enum:
-                field_type = _get_enum_values_type(field.type)  # type: ignore[arg-type]
-                extra_properties["enum"] = [
-                    field.value for field in field.type  # type: ignore[union-attr]
-                ]
-            schema["properties"][field.name] = {
-                **extra_properties,
-                "type": _python_type_to_json_schema_type(field_type),
-                "title": cls.field_title(field.name),
-                "description": cls.field_description(field.name),
-            }
-
-            if field.default is not m:
-                default = field.default.value if is_enum else field.default
-                schema["properties"][field.name]["default"] = default
-            elif field.default_factory is not m:
-                schema["properties"][field.name]["default"] = field.default_factory()
-            else:
-                schema["required"].append(field.name)
-
-        return schema
+    pass
 
 
 ReturnModel = type[Post]
@@ -104,7 +50,6 @@ class Handler(NamedTuple):
     name: str
     obj: Callable
     options_class: type[HandlerOptions] | None
-    return_fields_schema: dict | None
     return_model: ReturnModel | None
 
 
@@ -113,7 +58,6 @@ class RawHandler(NamedTuple):
     obj: Callable
     init_options_class: type[HandlerOptions] | None
     options_class: type[HandlerOptions] | None
-    return_fields_schema: dict | None
     return_model: ReturnModel | None
 
 
@@ -127,7 +71,6 @@ def register_handler(
     name: str | None = None,
     init_options: type[HandlerOptions] | None = None,
     options: type[HandlerOptions] | None = None,
-    return_fields_schema: dict | None = None,
     return_model: ReturnModel | None = None,
 ) -> Callable:
     def wrapper(func_or_class: Callable) -> Any:
@@ -143,7 +86,6 @@ def register_handler(
             obj=func_or_class,
             init_options_class=init_options,
             options_class=options,
-            return_fields_schema=return_fields_schema,
             return_model=return_model,
         )
 
@@ -263,7 +205,6 @@ def init_registered_handlers(configuration: Configuration) -> None:  # noqa: C90
                 subhandler.name,
                 handler.obj(options=init_options),
                 handler.options_class,
-                handler.return_fields_schema,
                 handler.return_model,
             )
             handler_key = (handler_type, subhandler.name)
@@ -288,7 +229,6 @@ def init_registered_handlers(configuration: Configuration) -> None:  # noqa: C90
                 handler_id,
                 func_or_class,
                 handler.options_class,
-                handler.return_fields_schema,
                 handler.return_model,
             )
             handler_key = (handler_type, handler_id)
@@ -333,39 +273,3 @@ def get_handler_return_model_by_name(type: HandlerType, name: str) -> ReturnMode
     if handler.return_model is None:
         raise ValueError(f"Handler {name} does not have return model")
     return handler.return_model
-
-
-Schema = TypedDict(
-    "Schema",
-    {
-        "$schema": str,
-        "title": str,
-        "type": str,
-        "properties": dict,
-        "required": list,
-    },
-)
-
-
-def _python_type_to_json_schema_type(python_type: type | str) -> str:
-    types = {
-        "str": "string",
-        "int": "integer",
-        "float": "number",
-        "bool": "boolean",
-    }
-    python_type = python_type if isinstance(python_type, str) else python_type.__name__
-    try:
-        return types[python_type]
-    except KeyError:
-        raise ValueError(f"Unsupported type {python_type}") from None
-
-
-def _get_enum_values_type(enum_class: type[Enum]) -> type:
-    enums: list[Enum] = list(enum_class)
-    klass = type(enums[0].value)
-    is_consistent = all(isinstance(e.value, klass) for e in enums)
-    if not is_consistent:
-        raise ValueError(f"Enum {enum_class.__name__} has inconsistent values types")
-
-    return klass
