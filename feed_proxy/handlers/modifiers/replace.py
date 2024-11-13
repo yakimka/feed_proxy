@@ -27,7 +27,7 @@ class ReplaceTestOptions(HandlerOptions):
 
 
 @register_handler(
-    type=HandlerType.modifiers.value,
+    type=HandlerType.modifiers,
     options=ReplaceTestOptions,
 )
 async def replace_text(posts: list[Post], *, options: ReplaceTestOptions) -> list[Post]:

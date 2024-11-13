@@ -52,7 +52,7 @@ class FeedPost(Post):
 
 
 @register_handler(
-    type=HandlerType.parsers.value,
+    type=HandlerType.parsers,
     return_fields_schema=FeedPost.fields_schema(),
     return_model=FeedPost,
 )

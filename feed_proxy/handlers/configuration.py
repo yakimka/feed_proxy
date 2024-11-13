@@ -6,13 +6,13 @@ def parse_configuration() -> dict:
     results: dict = {"handlers": {}}
 
     for item in HandlerType:
-        results["handlers"][item.value] = [
+        results["handlers"][item] = [
             {
                 "type": name,
                 "options": dict(opt.to_json_schema()) if opt else {},
                 "return_fields_schema": f_schema,
             }
-            for name, _, opt, f_schema, _ in handlers[item.value].values()
+            for name, _, opt, f_schema, _ in handlers[item].values()
         ]
 
     return results

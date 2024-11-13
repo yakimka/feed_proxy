@@ -2,16 +2,18 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
+from enum import Enum
 from functools import partial
 from itertools import chain
 from typing import TYPE_CHECKING, Any
 
 import yaml
-from dacite import exceptions, from_dict
+from dacite import Config, exceptions, from_dict
 
-from feed_proxy.entities import Receiver, Source
-from feed_proxy.handlers import init_handlers_config
+from feed_proxy.entities import Source
+from feed_proxy.handlers import HandlerType, InitHandlersError, init_registered_handlers
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -24,69 +26,99 @@ def _yaml_string_constructor(self: Any, node: Any, env_prefix: Any) -> Any:
     return value
 
 
-string_constructor = partial(_yaml_string_constructor, env_prefix="")
-yaml.Loader.add_constructor("tag:yaml.org,2002:str", string_constructor)
-yaml.SafeLoader.add_constructor("tag:yaml.org,2002:str", string_constructor)
+def get_yaml_reader(env_prefix: str = "") -> Callable[[str], dict]:
+    string_constructor = partial(_yaml_string_constructor, env_prefix=env_prefix)
+    yaml.Loader.add_constructor("tag:yaml.org,2002:str", string_constructor)
+    yaml.SafeLoader.add_constructor("tag:yaml.org,2002:str", string_constructor)
+    return yaml.safe_load
 
 
-@dataclass
-class MessageTemplate:
-    id: str
-    template: str
+def read_configuration_files(
+    path: Path, reader: Callable[[str], dict]
+) -> dict[str, Any]:
+    configurations: dict[str, dict] = {}
+    for file in chain(path.glob("*.yaml"), path.glob("*.yml")):
+        conf_parts = reader(file.read_text()) or {}
+        configurations |= json.loads(json.dumps(conf_parts))
+    return configurations
 
 
 class LoadConfigurationError(Exception):
     pass
 
 
-def load_configuration(path: Path) -> list[Source]:  # noqa: C901
-    configurations: dict[str, dict] = {}
-    for file in chain(path.glob("*.yaml"), path.glob("*.yml")):
-        conf_parts = yaml.safe_load(file.read_text())
-        configurations |= json.loads(json.dumps(conf_parts))
-
+def load_sources(configurations: dict[str, Any]) -> list[Source]:
     try:
-        init_handlers_config(configurations.get("handlers", {}))
-
-        receivers = {}
-        for receiver_id, receiver in configurations.get("receivers", {}).items():
-            receiver["id"] = receiver_id
-            receivers[receiver_id] = from_dict(Receiver, receiver)
-
-        message_templates = {}
-        for msg_tmpl_id, msg_tmpl in configurations.get(
-            "message-templates", {}
-        ).items():
-            msg_tmpl["id"] = msg_tmpl_id
-            message_templates[msg_tmpl_id] = from_dict(MessageTemplate, msg_tmpl)
-
-        sources = []
-        for source_id, source in configurations.get("sources", {}).items():
-            source_streams = source.pop("streams", {})
-            for receiver_id, stream in source_streams.items():
-                stream["receiver"] = receivers.get(receiver_id)
-                if stream.get("message_template_id") and stream.get("message_template"):
-                    raise LoadConfigurationError(
-                        "Only one of message_template_id or "
-                        f"message_template can be set: {source_id}"
-                    )
-                if message_template_id := stream.get("message_template_id"):
-                    message_template = message_templates.get(message_template_id)
-                    if not message_template:
-                        raise LoadConfigurationError(
-                            f"Message template {message_template_id} "
-                            f"not found: {source_id}"
-                        )
-                    stream["message_template"] = message_template.template
-
-            source["id"] = source_id
-            source["streams"] = list(source_streams.values())
-            sources.append(from_dict(Source, source))
-    except (exceptions.DaciteError, LoadConfigurationError) as e:
+        result = load_configuration(configurations)
+        return result.sources
+    except (LoadConfigurationError, InitHandlersError) as e:
         print(e)
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
+
+def load_configuration(configurations: dict[str, Any]) -> Configuration:
     if not configurations:
         raise LoadConfigurationError("No configuration files found")
 
+    result = read_configuration(configurations)
+    init_registered_handlers(result)
+    return result
+
+
+@dataclass
+class SubHandlerConfig:
+    handler_type: HandlerType
+    name: str
+    type: str
+    kwargs: dict[str, Any]
+
+
+@dataclass
+class Configuration:
+    sources: list[Source]
+    subhandlers: list[SubHandlerConfig]
+
+
+def read_configuration(config: dict[str, Any]) -> Configuration:
+    sources = _parse_sources(config)
+    if not sources:
+        raise LoadConfigurationError(
+            "Configuration must contain filled 'sources' block"
+        )
+
+    subhandlers = _parse_subhandlers(config)
+
+    return Configuration(sources=sources, subhandlers=subhandlers)
+
+
+def _parse_subhandlers(config: dict) -> list[SubHandlerConfig]:
+    result = []
+    for handler_type, subhandlers in config.get("handlers", {}).items():
+        for handler_name, subconfig in subhandlers.items():
+            try:
+                result.append(
+                    from_dict(
+                        SubHandlerConfig,
+                        {
+                            "handler_type": handler_type,
+                            "name": handler_name,
+                            "type": subconfig.get("type"),
+                            "kwargs": subconfig.get("kwargs"),
+                        },
+                        config=Config(cast=[Enum]),
+                    )
+                )
+            except exceptions.DaciteError as e:
+                raise LoadConfigurationError(f"Handler {handler_name}: {e}") from None
+    return result
+
+
+def _parse_sources(config: dict) -> list[Source]:
+    sources = []
+    for source_id, source in config.get("sources", {}).items():
+        source["id"] = source_id
+        try:
+            sources.append(from_dict(Source, source))
+        except exceptions.DaciteError as e:
+            raise LoadConfigurationError(f"Source {source_id}: {e}") from None
     return sources

@@ -24,7 +24,7 @@ class FetchTextOptions(HandlerOptions):
 
 
 @register_handler(
-    type=HandlerType.fetchers.value,
+    type=HandlerType.fetchers,
     name="fetch_text",
     options=FetchTextOptions,
 )

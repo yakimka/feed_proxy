@@ -6,7 +6,11 @@ import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple, TypeAlias
 
-from feed_proxy.configuration import load_configuration
+from feed_proxy.configuration import (
+    get_yaml_reader,
+    load_sources,
+    read_configuration_files,
+)
 from feed_proxy.logic import (
     fetch_text,
     parse_message_batches_from_posts,
@@ -67,7 +71,9 @@ async def main() -> None:
 async def _enqueue_sources(source_queue: SourceQueue) -> None:
     while True:
         path = Path(__file__).parent.parent.parent / "config"
-        sources = load_configuration(path)
+        config_reader = get_yaml_reader()
+        raw_config = read_configuration_files(path, config_reader)
+        sources = load_sources(raw_config)
         for source in sources:
             await source_queue.put(source)
         await asyncio.sleep(60 * 30)
@@ -119,4 +125,7 @@ async def _send_messages(outbox_queue: MessagesOutbox) -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except SystemExit:
+        raise SystemExit(1) from None

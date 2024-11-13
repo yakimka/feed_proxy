@@ -47,7 +47,7 @@ class RedditPost(Post):
 
 
 @register_handler(
-    type=HandlerType.parsers.value,
+    type=HandlerType.parsers,
     return_fields_schema=RedditPost.fields_schema(),
     return_model=RedditPost,
 )

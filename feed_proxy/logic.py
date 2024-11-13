@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 async def fetch_text(source: Source) -> str:
     fetcher = get_handler_by_name(
-        type=HandlerType.fetchers.value,
+        type=HandlerType.fetchers,
         name=source.fetcher_type,
         options=source.fetcher_options,
     )
@@ -30,7 +30,7 @@ async def fetch_text(source: Source) -> str:
 async def parse_posts(source: Source, text: str) -> list[tuple[Stream, list[Post]]]:
     parser = get_handler_by_name(
         name=source.parser_type,
-        type=HandlerType.parsers.value,
+        type=HandlerType.parsers,
         options=source.parser_options,
     )
     posts = await parser(text)
@@ -50,7 +50,7 @@ async def apply_modifiers_to_posts(
     for modifier in modifiers:
         modifier_func = get_handler_by_name(
             name=modifier.type,
-            type=HandlerType.modifiers.value,
+            type=HandlerType.modifiers,
             options=modifier.options,
         )
         posts = await modifier_func(posts)
@@ -61,7 +61,7 @@ async def parse_message_batches_from_posts(
     posts: list[Post], source: Source, stream: Stream, post_storage: PostStorage
 ) -> list[list[Message]]:
     message_batches: list[list[Message]] = []
-    key = (source.id, stream.receiver.id)
+    key = (source.id, stream.receiver_type)
     if not await post_storage.has_posts(key):
         logger.info("First run for %s, skipping all posts", key)
         all_posts = [post.post_id for post in posts]
@@ -98,12 +98,9 @@ async def parse_message_batches_from_posts(
 
 async def send_messages(messages: list[Message], stream: Stream) -> None:
     receiver = get_handler_by_name(
-        name=stream.receiver.type,
-        type=HandlerType.receivers.value,
-        options={
-            **stream.receiver.options,
-            **stream.receiver_options,
-        },
+        name=stream.receiver_type,
+        type=HandlerType.receivers,
+        options=stream.receiver_options,
     )
     await receiver(messages)
 

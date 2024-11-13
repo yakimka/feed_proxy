@@ -1,22 +1,22 @@
+from __future__ import annotations
+
 import asyncio
 import dataclasses
 import html
 import logging
 from functools import lru_cache
-from typing import Protocol
+from typing import TYPE_CHECKING
 
 from aiogram import Bot
 
 from feed_proxy.handlers import HandlerOptions, HandlerType, register_handler
 from feed_proxy.utils.text import template_to_text
 
+if TYPE_CHECKING:
+    from feed_proxy.handlers.types import Message
+
+
 logger = logging.getLogger(__name__)
-
-
-class Message(Protocol):
-    text: str
-    template: str
-    template_kwargs: dict
 
 
 @dataclasses.dataclass
@@ -38,7 +38,7 @@ def _get_bot(token: str) -> Bot:
 
 
 @register_handler(
-    type=HandlerType.receivers.value,
+    type=HandlerType.receivers,
     name="telegram_bot",
     options=TelegramBotOptions,
 )

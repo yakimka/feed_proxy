@@ -43,7 +43,7 @@ class ComparisonOptions(HandlerOptions):
 
 
 @register_handler(
-    type=HandlerType.modifiers.value,
+    type=HandlerType.modifiers,
     options=ComparisonOptions,
 )
 async def compare_and_filter(
