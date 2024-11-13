@@ -70,7 +70,7 @@ class SubHandlerConfig:
     handler_type: HandlerType
     name: str
     type: str
-    kwargs: dict[str, Any]
+    init_options: dict[str, Any]
 
 
 @dataclass
@@ -103,7 +103,7 @@ def _parse_subhandlers(config: dict) -> list[SubHandlerConfig]:
                             "handler_type": handler_type,
                             "name": handler_name,
                             "type": subconfig.get("type"),
-                            "kwargs": subconfig.get("kwargs"),
+                            "init_options": subconfig.get("init_options"),
                         },
                         config=Config(cast=[Enum]),
                     )

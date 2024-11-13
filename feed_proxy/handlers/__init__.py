@@ -245,7 +245,7 @@ def init_registered_handlers(configuration: Configuration) -> None:  # noqa: C90
     for handler_type, handler_id in used_handlers:
         if subhandler := subhandlers_by_name.get((handler_type, handler_id)):
             handler = _get_handler(handler_type, subhandler.type)
-            if subhandler.kwargs and not handler.init_options_class:
+            if subhandler.init_options and not handler.init_options_class:
                 raise InitHandlersError(
                     f"Handler {handler_id} does not have init_options"
                 )
@@ -253,11 +253,11 @@ def init_registered_handlers(configuration: Configuration) -> None:  # noqa: C90
             if handler.init_options_class:
                 try:
                     init_options = from_dict(
-                        handler.init_options_class, subhandler.kwargs
+                        handler.init_options_class, subhandler.init_options
                     )
                 except DaciteError as e:
                     raise InitHandlersError(
-                        f"Error while parsing kwargs for {handler_id}: {e}"
+                        f"Error while parsing init_options for {handler_id}: {e}"
                     ) from None
             result.setdefault(handler_type, {})[subhandler.name] = Handler(
                 subhandler.name,
@@ -272,7 +272,7 @@ def init_registered_handlers(configuration: Configuration) -> None:  # noqa: C90
             handler = _get_handler(handler_type, handler_id)
             if handler.init_options_class:
                 raise InitHandlersError(
-                    f"Please specify kwargs for {handler_id} in config"
+                    f"Please specify init_options for {handler_id} in config"
                 )
 
             result.setdefault(handler_type, {})[handler_id] = Handler(

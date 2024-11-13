@@ -98,7 +98,7 @@ def test_load_configuration_with_subhandlers(run_sut):
             "receivers": {
                 "my-dummy-receiver": {
                     "type": "dummy_receiver",
-                    "kwargs": {
+                    "init_options": {
                         "name": "dummy name",
                         "some_number": 42,
                     },
@@ -140,7 +140,7 @@ def configuration_for_typechecking():
             "receivers": {
                 "my-dummy-receiver": {
                     "type": "dummy_receiver",
-                    "kwargs": {
+                    "init_options": {
                         "name": "dummy name",
                         "some_number": 42,
                     },
@@ -169,10 +169,10 @@ def configuration_for_typechecking():
 
 def test_check_types_of_subhandler_kwargs(configuration_for_typechecking):
     receivers = configuration_for_typechecking["handlers"]["receivers"]
-    receivers["my-dummy-receiver"]["kwargs"]["some_number"] = "NEED TO BE INT"
+    receivers["my-dummy-receiver"]["init_options"]["some_number"] = "NEED TO BE INT"
 
     error_msg = (
-        "Error while parsing kwargs for my-dummy-receiver: "
+        "Error while parsing init_options for my-dummy-receiver: "
         'wrong value type for field "some_number"'
     )
     with pytest.raises(InitHandlersError, match=error_msg):

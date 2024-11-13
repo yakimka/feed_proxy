@@ -125,7 +125,4 @@ async def _send_messages(outbox_queue: MessagesOutbox) -> None:
 
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except SystemExit:
-        raise SystemExit(1) from None
+    asyncio.run(main())
