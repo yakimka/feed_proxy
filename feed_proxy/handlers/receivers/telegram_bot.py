@@ -20,6 +20,12 @@ logger = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass
+class TelegramBotInitOptions(HandlerOptions):
+    name: str
+    token: str
+
+
+@dataclasses.dataclass
 class TelegramBotOptions(HandlerOptions):
     DESCRIPTIONS = {
         "chat_id": ("Chat ID", "Telegram chat id"),
@@ -40,6 +46,7 @@ def _get_bot(token: str) -> Bot:
 @register_handler(
     type=HandlerType.receivers,
     name="telegram_bot",
+    init_options=TelegramBotInitOptions,
     options=TelegramBotOptions,
 )
 class TelegramBot:
@@ -47,9 +54,9 @@ class TelegramBot:
     MAX_MESSAGES_PER_MINUTE_PER_GROUP = 20
     pause_between_send = 60 / MAX_MESSAGES_PER_MINUTE_PER_GROUP  # seconds
 
-    def __init__(self, name: str, token: str):
-        self._name = name
-        self.bot = _get_bot(token)
+    def __init__(self, *, options: TelegramBotInitOptions):
+        self._name = options.name
+        self.bot = _get_bot(options.token)
 
     async def __call__(
         self,

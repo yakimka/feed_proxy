@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from feed_proxy.handlers import HandlerType, register_handler
+from feed_proxy.handlers import HandlerOptions, HandlerType, register_handler
 from feed_proxy.utils.text import template_to_text
 
 if TYPE_CHECKING:
@@ -30,15 +31,22 @@ async def console_printer(messages: list[Message]) -> None:
     print("".join(parts))
 
 
+@dataclass
+class NamedConsolePrinterOptions(HandlerOptions):
+    name: str
+    token: str
+
+
 @register_handler(
     type=HandlerType.receivers,
     name="named_console_printer",
+    init_options=NamedConsolePrinterOptions,
     options=None,
 )
 class NamedConsolePrinter:
-    def __init__(self, name: str):
-        print(f"NamedConsolePrinter(name={name}).__init__")
-        self._name = name
+    def __init__(self, *, options: NamedConsolePrinterOptions):
+        print(f"NamedConsolePrinter(name={options.name}).__init__")
+        self._name = options.name
 
     async def __call__(self, messages: list[Message]) -> None:
         await console_printer(messages)

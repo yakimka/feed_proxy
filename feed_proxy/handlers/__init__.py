@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 import dataclasses
 import importlib
 import os
@@ -22,12 +21,13 @@ if TYPE_CHECKING:
     from feed_proxy.configuration import Configuration
 
 __all__ = [
-    "get_registered_handlers",
-    "get_handler_by_name",
-    "register_handler",
     "HandlerOptions",
     "HandlerType",
+    "InitHandlersError",
+    "get_handler_by_name",
     "get_handler_return_model_by_name",
+    "get_registered_handlers",
+    "register_handler",
 ]
 
 
@@ -270,14 +270,23 @@ def init_registered_handlers(configuration: Configuration) -> None:  # noqa: C90
             options_class_by_key[handler_key] = handler.options_class
         else:
             handler = _get_handler(handler_type, handler_id)
-            if handler.init_options_class:
+            func_or_class = handler.obj
+            if handler.init_options_class and not isclass(func_or_class):
                 raise InitHandlersError(
-                    f"Please specify init_options for {handler_id} in config"
+                    f"init_options is not allowed for function {handler_id}"
                 )
+            elif handler.init_options_class:
+                try:
+                    init_options = from_dict(handler.init_options_class, {})
+                    func_or_class = func_or_class(options=init_options)
+                except DaciteError:
+                    raise InitHandlersError(
+                        f"Please specify init_options for {handler_id} in config"
+                    ) from None
 
             result.setdefault(handler_type, {})[handler_id] = Handler(
                 handler_id,
-                handler.obj,
+                func_or_class,
                 handler.options_class,
                 handler.return_fields_schema,
                 handler.return_model,
@@ -293,7 +302,7 @@ def init_registered_handlers(configuration: Configuration) -> None:  # noqa: C90
 
 
 def get_registered_handlers() -> dict[HandlerType, dict[str, Handler]]:
-    return copy.deepcopy(REGISTERED_HANDLERS)
+    return REGISTERED_HANDLERS
 
 
 def _load_modules(package: ModuleType) -> None:

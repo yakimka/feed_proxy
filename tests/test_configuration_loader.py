@@ -60,6 +60,7 @@ class DummyReceiverClassOptions(HandlerOptions):
 @dataclass
 class DummyReceiverOptions(HandlerOptions):
     number: int
+    another_number: int = 12
 
 
 @register_handler(
