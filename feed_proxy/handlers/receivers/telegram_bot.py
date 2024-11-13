@@ -1,22 +1,28 @@
+from __future__ import annotations
+
 import asyncio
 import dataclasses
 import html
 import logging
 from functools import lru_cache
-from typing import Protocol
+from typing import TYPE_CHECKING
 
 from aiogram import Bot
 
 from feed_proxy.handlers import HandlerOptions, HandlerType, register_handler
 from feed_proxy.utils.text import template_to_text
 
+if TYPE_CHECKING:
+    from feed_proxy.handlers.types import Message
+
+
 logger = logging.getLogger(__name__)
 
 
-class Message(Protocol):
-    text: str
-    template: str
-    template_kwargs: dict
+@dataclasses.dataclass
+class TelegramBotInitOptions(HandlerOptions):
+    name: str
+    token: str
 
 
 @dataclasses.dataclass
@@ -38,8 +44,9 @@ def _get_bot(token: str) -> Bot:
 
 
 @register_handler(
-    type=HandlerType.receivers.value,
+    type=HandlerType.receivers,
     name="telegram_bot",
+    init_options=TelegramBotInitOptions,
     options=TelegramBotOptions,
 )
 class TelegramBot:
@@ -47,9 +54,9 @@ class TelegramBot:
     MAX_MESSAGES_PER_MINUTE_PER_GROUP = 20
     pause_between_send = 60 / MAX_MESSAGES_PER_MINUTE_PER_GROUP  # seconds
 
-    def __init__(self, name: str, token: str):
-        self._name = name
-        self.bot = _get_bot(token)
+    def __init__(self, *, options: TelegramBotInitOptions):
+        self._name = options.name
+        self.bot = _get_bot(options.token)
 
     async def __call__(
         self,

@@ -33,22 +33,9 @@ class RedditPost(Post):
             "source_hash_tags": " ".join(make_hash_tags(self.source_tags)),
         }
 
-    @classmethod
-    def fields_schema(cls) -> dict:
-        return {
-            "post_id": {"type": "string"},
-            "title": {"type": "string"},
-            "url": {"type": "string"},
-            "comments": {"type": "string"},
-            "score": {"type": "integer"},
-            "source_tags": {"type": "array"},
-            "source_hash_tags": {"only_template": True},
-        }
-
 
 @register_handler(
-    type=HandlerType.parsers.value,
-    return_fields_schema=RedditPost.fields_schema(),
+    type=HandlerType.parsers,
     return_model=RedditPost,
 )
 async def reddit_json(

@@ -13,6 +13,11 @@ logger = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass
+class TextFetcherInitOptions(HandlerOptions):
+    pause_between_domain_calls_sec: float = 1.0
+
+
+@dataclasses.dataclass
 class FetchTextOptions(HandlerOptions):
     DESCRIPTIONS = {
         "url": ("URL", ""),
@@ -24,14 +29,15 @@ class FetchTextOptions(HandlerOptions):
 
 
 @register_handler(
-    type=HandlerType.fetchers.value,
+    type=HandlerType.fetchers,
     name="fetch_text",
+    init_options=TextFetcherInitOptions,
     options=FetchTextOptions,
 )
 class TextFetcher:
-    def __init__(self, pause_between_domain_calls_sec: float = 1.0):
+    def __init__(self, *, options: TextFetcherInitOptions) -> None:
         self._requests_limiter = _RequestsLimiter()
-        self._pause_between_domain_calls_sec = pause_between_domain_calls_sec
+        self._pause_between_domain_calls_sec = options.pause_between_domain_calls_sec
 
     async def __call__(self, *, options: FetchTextOptions) -> str | None:
         async with self._requests_limiter(
