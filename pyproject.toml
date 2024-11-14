@@ -35,6 +35,7 @@ tldextract = "^5.1.3"
 sentry-sdk = "^2.18.0"
 httpx = "^0.27.2"
 aiogram = "^3.14.0"
+picodi = "^0.30.0"
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.13.0"

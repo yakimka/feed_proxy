@@ -42,19 +42,8 @@ class Stream:
     intervals: list[str] = field(default_factory=list)
     squash: bool = True
     message_template: str | None = None
-    message_template_id: str | None = None
     modifiers: list[Modifier] = field(default_factory=list)
     active: bool = True
-
-    def __post_init__(self) -> None:
-        if self.message_template and self.message_template_id:
-            raise ValueError(
-                "Only one of message_template or message_template_id can be set"
-            )
-        if not self.message_template and not self.message_template_id:
-            raise ValueError(
-                "One of message_template or message_template_id must be set"
-            )
 
 
 @dataclass(kw_only=True)

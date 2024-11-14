@@ -189,6 +189,7 @@ def test_check_types_of_handler_options(configuration_for_typechecking):
         'wrong value type for field "number"'
     )
     with pytest.raises(InitHandlersError, match=error_msg):
+
         load_configuration(configuration_for_typechecking)
 
 

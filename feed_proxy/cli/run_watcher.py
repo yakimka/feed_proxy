@@ -1,16 +1,13 @@
 from __future__ import annotations
 
+import argparse
 import asyncio
 import logging
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple, TypeAlias
 
-from feed_proxy.configuration import (
-    get_yaml_reader,
-    load_sources,
-    read_configuration_files,
-)
+from feed_proxy.configuration import read_configuration_from_folder
 from feed_proxy.logic import (
     fetch_text,
     parse_message_batches_from_posts,
@@ -51,7 +48,7 @@ PostsQueue: TypeAlias = asyncio.Queue[PostsUnit]
 MessagesQueue: TypeAlias = asyncio.Queue[MessageUnit]
 
 
-async def main() -> None:
+async def worker(sources: list[Source]) -> None:
     logging.basicConfig(level=logging.INFO)
     source_queue: SourceQueue = asyncio.Queue()
     text_queue: TextQueue = asyncio.Queue()
@@ -60,7 +57,7 @@ async def main() -> None:
     post_storage = MemoryPostStorage()
 
     await asyncio.gather(
-        _enqueue_sources(source_queue),
+        _enqueue_sources(source_queue, sources),
         *[_process_sources(i, source_queue, text_queue) for i in range(1, 10)],
         _process_text(text_queue, post_queue),
         _process_posts(post_queue, outbox_queue, post_storage),
@@ -68,12 +65,8 @@ async def main() -> None:
     )
 
 
-async def _enqueue_sources(source_queue: SourceQueue) -> None:
+async def _enqueue_sources(source_queue: SourceQueue, sources: list[Source]) -> None:
     while True:
-        path = Path(__file__).parent.parent.parent / "config"
-        config_reader = get_yaml_reader()
-        raw_config = read_configuration_files(path, config_reader)
-        sources = load_sources(raw_config)
         for source in sources:
             await source_queue.put(source)
         await asyncio.sleep(60 * 30)
@@ -124,5 +117,13 @@ async def _send_messages(outbox_queue: MessagesOutbox) -> None:
         await outbox_queue.commit(outbox_item.id)
 
 
+def main(config_path: Path) -> None:
+    conf = read_configuration_from_folder(config_path)
+    asyncio.run(worker(conf.sources))
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=str, default="config")
+    args = parser.parse_args()
+    main(Path(args.config))

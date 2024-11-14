@@ -15,7 +15,7 @@ class RedditPost(Post):
     post_id: str
     title: str
     url: str
-    comments: str
+    comments_url: str
     score: int
     source_tags: tuple | list
 
@@ -27,7 +27,7 @@ class RedditPost(Post):
             "post_id": self.post_id,
             "title": self.title,
             "url": self.url,
-            "comments": self.comments,
+            "comments_url": self.comments_url,
             "score": self.score,
             "source_tags": "; ".join(self.source_tags),
             "source_hash_tags": " ".join(make_hash_tags(self.source_tags)),
@@ -47,7 +47,7 @@ async def reddit_json(
             post_id=entry["data"]["id"],
             title=entry["data"]["title"],
             url=entry["data"]["url"],
-            comments=f"https://reddit.com{entry['data']['permalink']}",
+            comments_url=f"https://reddit.com{entry['data']['permalink']}",
             score=entry["data"]["score"],
             source_tags=[],
         )

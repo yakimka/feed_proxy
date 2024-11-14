@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 import json
-import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from functools import partial
 from itertools import chain
 from typing import TYPE_CHECKING, Any
 
-import yaml
 from dacite import Config, exceptions, from_dict
+from picodi import Provide, inject
 
+from feed_proxy.deps import get_yaml_loader
 from feed_proxy.entities import Source
 from feed_proxy.handlers import HandlerType, InitHandlersError, init_registered_handlers
 
@@ -19,38 +18,17 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _yaml_string_constructor(self: Any, node: Any, env_prefix: Any) -> Any:
-    value = self.construct_yaml_str(node)
-    if value.startswith("ENV:"):
-        return os.environ[f"{env_prefix}{value[4:]}"].strip()
-    return value
-
-
-def get_yaml_reader(env_prefix: str = "") -> Callable[[str], dict]:
-    string_constructor = partial(_yaml_string_constructor, env_prefix=env_prefix)
-    yaml.Loader.add_constructor("tag:yaml.org,2002:str", string_constructor)
-    yaml.SafeLoader.add_constructor("tag:yaml.org,2002:str", string_constructor)
-    return yaml.safe_load
-
-
-def read_configuration_files(
-    path: Path, reader: Callable[[str], dict]
-) -> dict[str, Any]:
-    configurations: dict[str, dict] = {}
-    for file in chain(path.glob("*.yaml"), path.glob("*.yml")):
-        conf_parts = reader(file.read_text()) or {}
-        configurations |= json.loads(json.dumps(conf_parts))
-    return configurations
-
-
 class LoadConfigurationError(Exception):
     pass
 
 
-def load_sources(configurations: dict[str, Any]) -> list[Source]:
+@inject
+def read_configuration_from_folder(
+    folder_path: Path, yaml_loader: Callable[[str], dict] = Provide(get_yaml_loader)
+) -> Configuration:
+    configurations = read_configuration_files(folder_path, yaml_loader)
     try:
-        result = load_configuration(configurations)
-        return result.sources
+        return load_configuration(configurations)
     except (LoadConfigurationError, InitHandlersError) as e:
         print(e)
         raise SystemExit(1) from None
@@ -65,6 +43,16 @@ def load_configuration(configurations: dict[str, Any]) -> Configuration:
     return result
 
 
+def read_configuration_files(
+    path: Path, yaml_loader: Callable[[str], dict]
+) -> dict[str, Any]:
+    configurations: dict[str, dict] = {}
+    for file in chain(path.glob("*.yaml"), path.glob("*.yml")):
+        conf_parts = yaml_loader(file.read_text()) or {}
+        configurations |= json.loads(json.dumps(conf_parts))
+    return configurations
+
+
 @dataclass
 class SubHandlerConfig:
     handler_type: HandlerType
@@ -77,6 +65,7 @@ class SubHandlerConfig:
 class Configuration:
     sources: list[Source]
     subhandlers: list[SubHandlerConfig]
+    raw: dict[str, Any]
 
 
 def read_configuration(config: dict[str, Any]) -> Configuration:
@@ -87,8 +76,12 @@ def read_configuration(config: dict[str, Any]) -> Configuration:
         )
 
     subhandlers = _parse_subhandlers(config)
+    raw_config = {
+        "handlers": config.get("handlers", {}),
+        "sources": config.get("sources", {}),
+    }
 
-    return Configuration(sources=sources, subhandlers=subhandlers)
+    return Configuration(sources=sources, subhandlers=subhandlers, raw=raw_config)
 
 
 def _parse_subhandlers(config: dict) -> list[SubHandlerConfig]:

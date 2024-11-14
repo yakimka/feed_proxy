@@ -5,7 +5,7 @@ import dataclasses
 import html
 import logging
 from functools import lru_cache
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from aiogram import Bot
 
@@ -113,8 +113,8 @@ def _from_message_to_text(message: Message) -> str:
     return text.strip()
 
 
-def _html_escape_kwargs(template_kwargs: dict) -> dict[str, str]:
+def _html_escape_kwargs(template_kwargs: dict[str, Any]) -> dict[str, str]:
     return {
-        key: html.escape(value) if value else value
+        key: html.escape(str(value)) if value else value
         for key, value in template_kwargs.items()
     }
