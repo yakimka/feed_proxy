@@ -26,7 +26,7 @@ class Post(Protocol):
 class Message:
     post_id: str
     template: str
-    template_kwargs: dict = field(default_factory=dict)
+    template_kwargs: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(kw_only=True)
@@ -41,9 +41,8 @@ class Stream:
     receiver_options: dict[str, Any] = field(default_factory=dict)
     intervals: list[str] = field(default_factory=list)
     squash: bool = True
-    message_template: str | None = None
+    message_template: str
     modifiers: list[Modifier] = field(default_factory=list)
-    active: bool = True
 
 
 @dataclass(kw_only=True)
