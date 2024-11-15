@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import asyncio
 import json
 import sqlite3
-import time
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from typing import Protocol
@@ -82,18 +80,23 @@ class OutboxItem:
     stream: Stream
 
 
-class MessagesOutbox(Protocol):
+class MessagesOutboxStorage(Protocol):
     async def put(self, item: OutboxItem) -> None:
         pass
 
-    async def get(self) -> OutboxItem:
+    async def get(self, current_timestamp: int) -> OutboxItem | None:
+        pass
+
+    async def get_dead_letter(
+        self, current_timestamp: int, delta: int
+    ) -> OutboxItem | None:
         pass
 
     async def commit(self, id: str) -> None:
         pass
 
 
-class MemoryMessagesOutbox:
+class MemoryMessagesOutboxStorage:
     def __init__(self) -> None:
         self._queue: list[OutboxItem] = []
         self._in_progress: dict[str, int] = {}
@@ -101,21 +104,33 @@ class MemoryMessagesOutbox:
     async def put(self, item: OutboxItem) -> None:
         self._queue.append(item)
 
-    async def get(self) -> OutboxItem:
-        while True:
-            for item in self._queue:
-                if item.id in self._in_progress:
-                    continue
-                self._in_progress[item.id] = int(time.time())
+    async def get(self, current_timestamp: int) -> OutboxItem | None:
+        for item in self._queue:
+            if item.id in self._in_progress:
+                continue
+            self._in_progress[item.id] = current_timestamp
+            return item
+        return None
+
+    async def get_dead_letter(
+        self, current_timestamp: int, delta: int
+    ) -> OutboxItem | None:
+        in_progress = sorted(self._in_progress.items(), key=lambda x: x[1])
+        for item_id, _ in in_progress:
+            if current_timestamp - self._in_progress[item_id] >= delta:
+                item = next((item for item in self._queue if item.id == item_id), None)
+                assert item is not None, f"Item {item_id} not found in the queue"
                 return item
-            await asyncio.sleep(0.1)
+            else:
+                break
+        return None
 
     async def commit(self, id: str) -> None:
         for i, queue_item in enumerate(self._queue):
             if queue_item.id == id:
                 self._queue.pop(i)
-                self._in_progress.pop(id, None)
                 break
+        self._in_progress.pop(id, None)
 
 
 def outbox_item_to_sqlite_serializer(item: OutboxItem) -> tuple[str, str]:
@@ -126,7 +141,7 @@ def sqlite_to_outbox_item_deserializer(row: tuple[str, str]) -> OutboxItem:
     return from_dict(OutboxItem, json.loads(row[1]))
 
 
-class SqliteMessagesOutbox:
+class SqliteMessagesOutboxStorage:
     def __init__(
         self,
         conn: sqlite3.Connection,
@@ -147,31 +162,49 @@ class SqliteMessagesOutbox:
             "INSERT INTO outbox (id, data) VALUES (?, ?)", self._serializer(item)
         )
 
-    async def get(self) -> OutboxItem:
+    async def get(self, current_timestamp: int) -> OutboxItem | None:
         cursor = self._conn.cursor()
-        while True:
-            cursor.execute(
-                """
-                SELECT id, data FROM outbox
-                WHERE in_progress_at IS NULL
-                ORDER BY created_at
-                LIMIT 1
-                """
-            )
-            item = cursor.fetchone()
-            if not item:
-                await asyncio.sleep(0.1)
-                continue
+        cursor.execute(
+            """
+            SELECT id, data FROM outbox
+            WHERE in_progress_at IS NULL
+            ORDER BY created_at
+            LIMIT 1
+            """
+        )
+        item = cursor.fetchone()
+        if not item:
+            return None
 
-            # Mark the item as in progress with the current timestamp
-            item_id = item[0]
-            cursor.execute(
-                "UPDATE outbox SET in_progress_at = ? WHERE id = ?",
-                (int(time.time()), item_id),
-            )
-            self._conn.commit()
+        # Mark the item as in progress with the current timestamp
+        item_id = item[0]
+        cursor.execute(
+            "UPDATE outbox SET in_progress_at = ? WHERE id = ?",
+            (current_timestamp, item_id),
+        )
+        self._conn.commit()
 
-            return self._deserializer(item)
+        return self._deserializer(item)
+
+    async def get_dead_letter(
+        self, current_timestamp: int, delta: int
+    ) -> OutboxItem | None:
+        cursor = self._conn.cursor()
+        cursor.execute(
+            """
+            SELECT id, data FROM outbox
+            WHERE in_progress_at IS NOT NULL
+            AND in_progress_at <= ?
+            ORDER BY in_progress_at
+            LIMIT 1
+            """,
+            (current_timestamp - delta,),
+        )
+        item = cursor.fetchone()
+        if not item:
+            return None
+
+        return self._deserializer(item)
 
     async def commit(self, id: str) -> None:
         cursor = self._conn.cursor()

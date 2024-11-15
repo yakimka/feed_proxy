@@ -4,11 +4,13 @@ from functools import partial
 from typing import Any
 
 import yaml
+from picodi import Provide, inject
 
+from feed_proxy.messages_outbox import MessagesOutbox
 from feed_proxy.storage import (
-    MemoryMessagesOutbox,
+    MemoryMessagesOutboxStorage,
     MemoryPostStorage,
-    MessagesOutbox,
+    MessagesOutboxStorage,
     PostStorage,
 )
 
@@ -39,5 +41,12 @@ def get_post_storage() -> PostStorage:
     return MemoryPostStorage()
 
 
-def get_outbox_queue() -> MessagesOutbox:
-    return MemoryMessagesOutbox()
+def get_outbox_storage() -> MessagesOutboxStorage:
+    return MemoryMessagesOutboxStorage()
+
+
+@inject
+def get_outbox_queue(
+    storage: MessagesOutboxStorage = Provide(get_outbox_storage),
+) -> MessagesOutbox:
+    return MessagesOutbox(storage)

@@ -17,10 +17,11 @@ from feed_proxy.logic import (
     parse_posts,
     send_messages,
 )
-from feed_proxy.storage import MessagesOutbox, OutboxItem, PostStorage
+from feed_proxy.storage import OutboxItem, PostStorage
 
 if TYPE_CHECKING:
     from feed_proxy.entities import Message, Post, Source, Stream
+    from feed_proxy.messages_outbox import MessagesOutbox
 
 
 class TextUnit(NamedTuple):

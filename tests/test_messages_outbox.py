@@ -2,23 +2,15 @@ import asyncio
 
 import pytest
 
-from feed_proxy.storage import (
-    MemoryMessagesOutbox,
-    SqliteMessagesOutbox,
-    create_sqlite_conn,
-)
+from feed_proxy.messages_outbox import MessagesOutbox
+from feed_proxy.storage import MemoryMessagesOutboxStorage
 
 
-@pytest.fixture(params=[MemoryMessagesOutbox, SqliteMessagesOutbox])
-def make_sut(request):
+@pytest.fixture()
+def make_sut():
     def _make_sut():
-        if request.param == SqliteMessagesOutbox:
-            conn = create_sqlite_conn(":memory:")
-            return SqliteMessagesOutbox(conn)
-        elif request.param == MemoryMessagesOutbox:
-            return MemoryMessagesOutbox()
-        else:
-            raise ValueError("Invalid storage type")
+        storage = MemoryMessagesOutboxStorage()
+        return MessagesOutbox(storage)
 
     return _make_sut
 
