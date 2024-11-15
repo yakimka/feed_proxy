@@ -7,20 +7,17 @@ import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple, TypeAlias
 
+from picodi import Provide, inject
+
 from feed_proxy.configuration import read_configuration_from_folder
+from feed_proxy.deps import get_outbox_queue, get_post_storage
 from feed_proxy.logic import (
     fetch_text,
     parse_message_batches_from_posts,
     parse_posts,
     send_messages,
 )
-from feed_proxy.storage import (
-    MemoryMessagesOutbox,
-    MemoryPostStorage,
-    MessagesOutbox,
-    OutboxItem,
-    PostStorage,
-)
+from feed_proxy.storage import MessagesOutbox, OutboxItem, PostStorage
 
 if TYPE_CHECKING:
     from feed_proxy.entities import Message, Post, Source, Stream
@@ -48,13 +45,15 @@ PostsQueue: TypeAlias = asyncio.Queue[PostsUnit]
 MessagesQueue: TypeAlias = asyncio.Queue[MessageUnit]
 
 
-async def worker(sources: list[Source]) -> None:
-    logging.basicConfig(level=logging.INFO)
+@inject
+async def worker(
+    sources: list[Source],
+    post_storage: PostStorage = Provide(get_post_storage),
+    outbox_queue: MessagesOutbox = Provide(get_outbox_queue),
+) -> None:
     source_queue: SourceQueue = asyncio.Queue()
     text_queue: TextQueue = asyncio.Queue()
     post_queue: PostsQueue = asyncio.Queue()
-    outbox_queue = MemoryMessagesOutbox()
-    post_storage = MemoryPostStorage()
 
     await asyncio.gather(
         _enqueue_sources(source_queue, sources),
@@ -118,6 +117,7 @@ async def _send_messages(outbox_queue: MessagesOutbox) -> None:
 
 
 def main(config_path: Path) -> None:
+    logging.basicConfig(level=logging.INFO)
     conf = read_configuration_from_folder(config_path)
     asyncio.run(worker(conf.sources))
 

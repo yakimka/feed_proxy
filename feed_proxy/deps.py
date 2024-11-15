@@ -5,6 +5,13 @@ from typing import Any
 
 import yaml
 
+from feed_proxy.storage import (
+    MemoryMessagesOutbox,
+    MemoryPostStorage,
+    MessagesOutbox,
+    PostStorage,
+)
+
 
 def _yaml_string_constructor(self: Any, node: Any) -> Any:
     value = self.construct_yaml_str(node)
@@ -26,3 +33,11 @@ def get_yaml_dumper() -> Callable[[dict], str]:
         yaml.safe_dump,
         default_flow_style=False,
     )
+
+
+def get_post_storage() -> PostStorage:
+    return MemoryPostStorage()
+
+
+def get_outbox_queue() -> MessagesOutbox:
+    return MemoryMessagesOutbox()
