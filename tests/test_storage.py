@@ -1,12 +1,18 @@
 import pytest
 
-from feed_proxy.storage import MemoryPostStorage
+from feed_proxy.storage import MemoryPostStorage, SqlitePostStorage, create_sqlite_conn
 
 
-@pytest.fixture()
-def make_sut():
+@pytest.fixture(params=[MemoryPostStorage, SqlitePostStorage])
+def make_sut(request):
     def _make_sut():
-        return MemoryPostStorage()
+        if request.param == SqlitePostStorage:
+            conn = create_sqlite_conn(":memory:")
+            return SqlitePostStorage(conn)
+        elif request.param == MemoryPostStorage:
+            return MemoryPostStorage()
+        else:
+            raise ValueError("Invalid storage type")
 
     return _make_sut
 

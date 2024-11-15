@@ -2,13 +2,23 @@ import asyncio
 
 import pytest
 
-from feed_proxy.storage import MemoryMessagesOutbox
+from feed_proxy.storage import (
+    MemoryMessagesOutbox,
+    SqliteMessagesOutbox,
+    create_sqlite_conn,
+)
 
 
-@pytest.fixture()
-def make_sut():
+@pytest.fixture(params=[MemoryMessagesOutbox, SqliteMessagesOutbox])
+def make_sut(request):
     def _make_sut():
-        return MemoryMessagesOutbox()
+        if request.param == SqliteMessagesOutbox:
+            conn = create_sqlite_conn(":memory:")
+            return SqliteMessagesOutbox(conn)
+        elif request.param == MemoryMessagesOutbox:
+            return MemoryMessagesOutbox()
+        else:
+            raise ValueError("Invalid storage type")
 
     return _make_sut
 
@@ -43,15 +53,17 @@ async def test_get_wait_item_until_it_appears(make_sut, mother):
     assert result == item
 
 
-async def test_can_get_item_multiple_times_if_it_not_commited(make_sut, mother):
+async def test_one_message_can_be_retrieved_only_once(make_sut, mother):
     sut = make_sut()
 
     item = mother.outbox_item()
     await sut.put(item)
 
-    results = [await asyncio.wait_for(sut.get(), timeout=0.5) for _ in range(3)]
+    first_consume = asyncio.wait_for(sut.get(), timeout=0.5)
+    assert await first_consume == item
 
-    assert all(result == item for result in results)
+    with pytest.raises(asyncio.TimeoutError):
+        await asyncio.wait_for(sut.get(), timeout=0.5)
 
 
 async def test_item_disappears_after_commit(make_sut, mother):
@@ -63,3 +75,22 @@ async def test_item_disappears_after_commit(make_sut, mother):
 
     with pytest.raises(asyncio.TimeoutError):
         await asyncio.wait_for(sut.get(), timeout=0.5)
+
+
+async def test_one_message_can_be_retrieved_only_once_even_in_concurrent_requests(
+    make_sut, mother
+):
+    sut = make_sut()
+
+    item = mother.outbox_item()
+    await sut.put(item)
+
+    async def consume():
+        try:
+            return await asyncio.wait_for(sut.get(), timeout=0.5)
+        except asyncio.TimeoutError:
+            return None
+
+    results = await asyncio.gather(*[consume() for _ in range(10)])
+
+    assert len([r for r in results if r == item]) == 1
