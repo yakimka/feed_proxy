@@ -35,4 +35,4 @@ ENV PATH="/venv/bin:$PATH"
 WORKDIR /opt/app
 COPY --from=builder $VIRTUAL_ENV $VIRTUAL_ENV
 
-CMD ["python"]
+CMD ["python", "-m", "feed_proxy.cli.run"]

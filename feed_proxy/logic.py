@@ -9,8 +9,7 @@ import httpx
 
 from feed_proxy.entities import Message, Modifier, Post, Source, Stream
 from feed_proxy.handlers import HandlerType, get_handler_by_name
-from feed_proxy.sentry.error_tracking import write_warn_message
-from feed_proxy.utils.http import DEFAULT_UA
+from feed_proxy.utils.http import ACCEPT_HEADER, DEFAULT_UA
 
 if TYPE_CHECKING:
     from feed_proxy.storage import PostStorage
@@ -115,7 +114,13 @@ async def fetch_text_from_url(
         while True:
             try:
                 res = await client.get(
-                    url, headers={"user-agent": DEFAULT_UA}, timeout=30.0
+                    url,
+                    headers={
+                        "user-agent": DEFAULT_UA,
+                        "accept": ACCEPT_HEADER,
+                        "accept-language": "uk-UA,uk;q=0.8,en-US;q=0.5,en;q=0.3",
+                    },
+                    timeout=30.0,
                 )
                 res.raise_for_status()
             except httpx.HTTPError as e:
@@ -129,8 +134,9 @@ async def fetch_text_from_url(
                     await asyncio.sleep(3.0)
                     continue
 
-                msg = f"Error while fetching {url}: error {type(e).__name__}\n{e}"
-                write_warn_message(msg, logger.warning)
+                logger.warning(
+                    "Error while fetching %s: error %s\n%s", url, type(e).__name__, e
+                )
                 return None
 
             if encoding:
