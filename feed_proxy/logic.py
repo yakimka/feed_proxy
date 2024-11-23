@@ -69,7 +69,7 @@ async def parse_message_batches_from_posts(
 
     messages = []
     to_mark = []
-    for post in posts:
+    for post in reversed(posts):
         if await post_storage.is_post_processed(key, post.post_id):
             continue
         assert stream.message_template, "Stream message template is not set"
