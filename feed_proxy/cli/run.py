@@ -7,23 +7,25 @@ import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple, TypeAlias
 
+from picodi import Provide, inject
+
 from feed_proxy.configuration import read_configuration_from_folder
+from feed_proxy.deps import get_outbox_queue, get_post_storage
 from feed_proxy.logic import (
     fetch_text,
     parse_message_batches_from_posts,
     parse_posts,
     send_messages,
 )
-from feed_proxy.storage import (
-    MemoryMessagesOutbox,
-    MemoryPostStorage,
-    MessagesOutbox,
-    OutboxItem,
-    PostStorage,
-)
+from feed_proxy.observability import setup_logging_instruments
+from feed_proxy.storage import OutboxItem, PostStorage
 
 if TYPE_CHECKING:
     from feed_proxy.entities import Message, Post, Source, Stream
+    from feed_proxy.messages_outbox import MessagesOutbox
+
+
+logger = logging.getLogger(__name__)
 
 
 class TextUnit(NamedTuple):
@@ -48,13 +50,15 @@ PostsQueue: TypeAlias = asyncio.Queue[PostsUnit]
 MessagesQueue: TypeAlias = asyncio.Queue[MessageUnit]
 
 
-async def worker(sources: list[Source]) -> None:
-    logging.basicConfig(level=logging.INFO)
+@inject
+async def worker(
+    sources: list[Source],
+    post_storage: PostStorage = Provide(get_post_storage),
+    outbox_queue: MessagesOutbox = Provide(get_outbox_queue),
+) -> None:
     source_queue: SourceQueue = asyncio.Queue()
     text_queue: TextQueue = asyncio.Queue()
     post_queue: PostsQueue = asyncio.Queue()
-    outbox_queue = MemoryMessagesOutbox()
-    post_storage = MemoryPostStorage()
 
     await asyncio.gather(
         _enqueue_sources(source_queue, sources),
@@ -69,6 +73,7 @@ async def _enqueue_sources(source_queue: SourceQueue, sources: list[Source]) -> 
     while True:
         for source in sources:
             await source_queue.put(source)
+        logger.info("Enqueued %s sources, waiting for 30 minutes", len(sources))
         await asyncio.sleep(60 * 30)
 
 
@@ -76,14 +81,19 @@ async def _process_sources(
     i: int, source_queue: SourceQueue, text_queue: TextQueue
 ) -> None:
     while source := await source_queue.get():
-        logging.info("Worker %s processing %s (fetch_text)", i, source.id)
+        logger.info("Worker %s processing %s (fetch_text)", i, source.id)
         text = await fetch_text(source)
+        if not text:
+            logger.warning("Can't fetch text for %s", source.id)
+            continue
+
         await text_queue.put(TextUnit(text=text, source=source))
         source_queue.task_done()
 
 
 async def _process_text(text_queue: TextQueue, post_queue: PostsQueue) -> None:
     while text_unit := await text_queue.get():
+        logger.info("Processing text for %s (parse_posts)", text_unit.source.id)
         parsed_posts = await parse_posts(text_unit.source, text_unit.text)
         for stream, posts in parsed_posts:
             await post_queue.put(
@@ -117,8 +127,9 @@ async def _send_messages(outbox_queue: MessagesOutbox) -> None:
         await outbox_queue.commit(outbox_item.id)
 
 
-def main(config_path: Path) -> None:
-    conf = read_configuration_from_folder(config_path)
+def main(args: argparse.Namespace) -> None:
+    conf = read_configuration_from_folder(Path(args.config))
+    setup_logging_instruments(conf.app_settings)
     asyncio.run(worker(conf.sources))
 
 
@@ -126,4 +137,4 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, default="config")
     args = parser.parse_args()
-    main(Path(args.config))
+    main(args)

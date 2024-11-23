@@ -4,13 +4,14 @@ import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
+from functools import lru_cache
 from itertools import chain
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from dacite import Config, exceptions, from_dict
-from picodi import Provide, inject
+from picodi import Provide, inject, registry
 
-from feed_proxy.deps import get_yaml_loader
+from feed_proxy.deps import get_app_settings, get_yaml_loader
 from feed_proxy.entities import Source
 from feed_proxy.handlers import HandlerType, InitHandlersError, init_registered_handlers
 
@@ -22,13 +23,16 @@ class LoadConfigurationError(Exception):
     pass
 
 
+@lru_cache(maxsize=1)
 @inject
 def read_configuration_from_folder(
     folder_path: Path, yaml_loader: Callable[[str], dict] = Provide(get_yaml_loader)
 ) -> Configuration:
     configurations = read_configuration_files(folder_path, yaml_loader)
     try:
-        return load_configuration(configurations)
+        conf = load_configuration(configurations)
+        registry.override(get_app_settings, lambda: conf.app_settings)
+        return conf
     except (LoadConfigurationError, InitHandlersError) as e:
         print(e)
         raise SystemExit(1) from None
@@ -62,7 +66,17 @@ class SubHandlerConfig:
 
 
 @dataclass
+class AppSettings:
+    log_level: str = "INFO"
+    sentry_dsn: str | None = None
+    post_storage: Literal["memory", "sqlite"] = "memory"
+    outbox_storage: Literal["memory", "sqlite"] = "memory"
+    sqlite_db: str | None = None
+
+
+@dataclass
 class Configuration:
+    app_settings: AppSettings
     sources: list[Source]
     subhandlers: list[SubHandlerConfig]
     raw: dict[str, Any]
@@ -76,12 +90,26 @@ def read_configuration(config: dict[str, Any]) -> Configuration:
         )
 
     subhandlers = _parse_subhandlers(config)
+    settings = _parse_app_settings(config)
     raw_config = {
         "handlers": config.get("handlers", {}),
         "sources": config.get("sources", {}),
+        "settings": config.get("settings", {}),
     }
 
-    return Configuration(sources=sources, subhandlers=subhandlers, raw=raw_config)
+    return Configuration(
+        app_settings=settings,
+        sources=sources,
+        subhandlers=subhandlers,
+        raw=raw_config,
+    )
+
+
+def _parse_app_settings(config: dict) -> AppSettings:
+    try:
+        return from_dict(AppSettings, config.get("settings", {}))
+    except exceptions.DaciteError as e:
+        raise LoadConfigurationError(f"App settings: {e}") from None
 
 
 def _parse_subhandlers(config: dict) -> list[SubHandlerConfig]:
