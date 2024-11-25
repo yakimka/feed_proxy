@@ -118,6 +118,7 @@ def get_outbox_queue(
     return MessagesOutbox(storage)
 
 
+@dependency(scope_class=SingletonScope)
 @inject
 def get_metrics(
     app_settings: AppSettings = Provide(get_app_settings),
