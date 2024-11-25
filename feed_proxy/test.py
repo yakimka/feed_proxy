@@ -56,6 +56,7 @@ class ObjectMother:
         self,
         id: str = "event_id",
         messages: Iterable[Message] | None = None,
+        source_id: str = "guido-blog",
         stream: Stream | None = None,
     ) -> OutboxItem:
         if messages is None:
@@ -65,6 +66,7 @@ class ObjectMother:
         return OutboxItem(
             id=id,
             messages=list(messages),
+            source_id=source_id,
             stream=stream,
         )
 

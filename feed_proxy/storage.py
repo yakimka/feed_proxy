@@ -77,6 +77,7 @@ class SqlitePostStorage:
 class OutboxItem:
     id: str
     messages: list[Message]
+    source_id: str
     stream: Stream
 
 

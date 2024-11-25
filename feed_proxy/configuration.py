@@ -72,6 +72,8 @@ class AppSettings:
     post_storage: Literal["memory", "sqlite"] = "memory"
     outbox_storage: Literal["memory", "sqlite"] = "memory"
     sqlite_db: str | None = None
+    metrics_client: Literal["null", "prometheus"] = "null"
+    metrics_file: str = "metrics.prom"
 
 
 @dataclass
