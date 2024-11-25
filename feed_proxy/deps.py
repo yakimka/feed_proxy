@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from functools import partial
 from typing import TYPE_CHECKING, Any
 
@@ -11,6 +11,7 @@ from picodi import Provide, SingletonScope, dependency, inject
 from picodi.helpers import enter
 
 from feed_proxy.messages_outbox import MessagesOutbox
+from feed_proxy.observability import Metrics, NullMetrics, PrometheusMetrics
 from feed_proxy.storage import (
     MemoryMessagesOutboxStorage,
     MemoryPostStorage,
@@ -115,3 +116,20 @@ def get_outbox_queue(
     storage: MessagesOutboxStorage = Provide(get_outbox_storage),
 ) -> MessagesOutbox:
     return MessagesOutbox(storage)
+
+
+@inject
+def get_metrics(
+    app_settings: AppSettings = Provide(get_app_settings),
+) -> Generator[Metrics, None, None]:
+    if app_settings.metrics_client == "null":
+        metrics: Metrics = NullMetrics()
+    elif app_settings.metrics_client == "prometheus":
+        metrics = PrometheusMetrics(app_settings.metrics_file)
+    else:
+        raise ValueError(f"Unknown metrics client: {app_settings.metrics_client}")
+
+    try:
+        yield metrics
+    finally:
+        metrics.stop_daemon()
