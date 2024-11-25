@@ -54,10 +54,10 @@ class Metrics(Protocol):
     def write_to_file(self) -> None:
         pass
 
-    def run_write_to_file_daemon(self) -> None:
+    def start_daemon(self) -> None:
         pass
 
-    def stop_write_to_file_daemon(self) -> None:
+    def stop_daemon(self) -> None:
         pass
 
 
@@ -83,11 +83,11 @@ class NullMetrics:
     def write_to_file(self) -> None:
         return None
 
-    def run_write_to_file_daemon(self) -> None:
-        print("NullMetrics: run_write_to_file_daemon")
+    def start_daemon(self) -> None:
+        print("NullMetrics: start_daemon")
 
-    def stop_write_to_file_daemon(self) -> None:
-        print("NullMetrics: stop_write_to_file_daemon")
+    def stop_daemon(self) -> None:
+        print("NullMetrics: stop_daemon")
 
 
 class PrometheusMetrics:
@@ -120,6 +120,12 @@ class PrometheusMetrics:
             ["source_id", "receiver_id"],
             registry=self.registry,
         )
+        self._app_uptime = Counter(
+            "app_uptime_seconds_total",
+            "Application uptime in seconds",
+            registry=self.registry,
+        )
+        self._app_start_time = time.monotonic()
 
     def increment_sources_fetched(self, source_id: str, status: str) -> None:
         self._sources_fetched.labels(source_id, status).inc()
@@ -140,14 +146,18 @@ class PrometheusMetrics:
     def write_to_file(self) -> None:
         write_to_textfile(str(self._textfile_path), self.registry)
 
-    def run_write_to_file_daemon(self) -> None:
+    def update_uptime(self) -> None:
+        self._app_uptime.inc(time.monotonic() - self._app_start_time)
+
+    def start_daemon(self) -> None:
         def write_to_file() -> None:
             self._daemon_running = True
             while self._daemon_running:
+                self.update_uptime()
                 self.write_to_file()
                 time.sleep(10)
 
         threading.Thread(target=write_to_file, daemon=True).start()
 
-    def stop_write_to_file_daemon(self) -> None:
+    def stop_daemon(self) -> None:
         self._daemon_running = False

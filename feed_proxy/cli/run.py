@@ -59,7 +59,7 @@ async def worker(
     post_storage: PostStorage = Provide(get_post_storage),
     outbox_queue: MessagesOutbox = Provide(get_outbox_queue),
 ) -> None:
-    metrics.run_write_to_file_daemon()
+    metrics.start_daemon()
 
     source_queue: SourceQueue = asyncio.Queue()
     text_queue: TextQueue = asyncio.Queue()

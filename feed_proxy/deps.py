@@ -132,4 +132,4 @@ def get_metrics(
     try:
         yield metrics
     finally:
-        metrics.stop_write_to_file_daemon()
+        metrics.stop_daemon()
