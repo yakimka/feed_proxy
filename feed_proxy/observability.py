@@ -99,55 +99,63 @@ class PrometheusMetrics:
         self._sources_fetched = Counter(
             "sources_fetched_total",
             "Number of sources fetched",
-            ["source_id", "status"],
+            ["app_name", "source_id", "status"],
             registry=self.registry,
         )
         self._posts_parsed = Counter(
             "posts_parsed_total",
             "Number of posts parsed",
-            ["source_id"],
+            ["app_name", "source_id"],
             registry=self.registry,
         )
         self._messages_prepared = Counter(
             "messages_prepared_total",
             "Number of messages prepared",
-            ["source_id", "receiver_id"],
+            ["app_name", "source_id", "receiver_id"],
             registry=self.registry,
         )
         self._messages_sent = Counter(
             "messages_sent_total",
             "Number of messages sent",
-            ["source_id", "receiver_id"],
+            ["app_name", "source_id", "receiver_id"],
             registry=self.registry,
         )
         self._app_uptime = Counter(
             "app_uptime_seconds_total",
             "Application uptime in seconds",
+            ["app_name"],
             registry=self.registry,
         )
         self._app_start_time = time.monotonic()
+        self._app_name = "feed_proxy_worker"
 
     def increment_sources_fetched(self, source_id: str, status: str) -> None:
-        self._sources_fetched.labels(source_id, status).inc()
+        self._sources_fetched.labels(self._app_name, source_id, status).inc()
 
     def increment_posts_parsed(self, source_id: str) -> None:
-        self._posts_parsed.labels(source_id).inc()
+        self._posts_parsed.labels(self._app_name, source_id).inc()
 
     def increment_messages_prepared(
         self, source_id: str, receiver_id: str, messages_count: int
     ) -> None:
-        self._messages_prepared.labels(source_id, receiver_id).inc(messages_count)
+        self._messages_prepared.labels(self._app_name, source_id, receiver_id).inc(
+            messages_count
+        )
 
     def increment_messages_sent(
         self, source_id: str, receiver_id: str, messages_count: int
     ) -> None:
-        self._messages_sent.labels(source_id, receiver_id).inc(messages_count)
+        self._messages_sent.labels(self._app_name, source_id, receiver_id).inc(
+            messages_count
+        )
 
     def write_to_file(self) -> None:
         write_to_textfile(str(self._textfile_path), self.registry)
 
     def update_uptime(self) -> None:
-        self._app_uptime.inc(time.monotonic() - self._app_start_time)
+        self._app_uptime.labels(self._app_name).inc(
+            time.monotonic() - self._app_start_time
+        )
 
     def start_daemon(self) -> None:
         def write_to_file() -> None:
