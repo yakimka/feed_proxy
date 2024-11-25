@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 import sentry_sdk
-from prometheus_client import CollectorRegistry, Counter, write_to_textfile
+from prometheus_client import CollectorRegistry, Counter, Gauge, write_to_textfile
 from sentry_sdk.integrations.logging import LoggingIntegration
 
 if TYPE_CHECKING:
@@ -120,7 +120,7 @@ class PrometheusMetrics:
             ["app_name", "source_id", "receiver_id"],
             registry=self.registry,
         )
-        self._app_uptime = Counter(
+        self._app_uptime = Gauge(
             "app_uptime_seconds_total",
             "Application uptime in seconds",
             ["app_name"],
@@ -153,7 +153,7 @@ class PrometheusMetrics:
         write_to_textfile(str(self._textfile_path), self.registry)
 
     def update_uptime(self) -> None:
-        self._app_uptime.labels(self._app_name).inc(
+        self._app_uptime.labels(self._app_name).set(
             time.monotonic() - self._app_start_time
         )
 
