@@ -35,6 +35,11 @@ def _parse_logging_level_from_string(level: str) -> int:
 
 
 class Metrics(Protocol):
+    def initialize_metrics(
+        self, streams: list[tuple[str, str]], statuses: list[str]
+    ) -> None:
+        pass
+
     def increment_sources_fetched(self, source_id: str, status: str) -> None:
         pass
 
@@ -62,6 +67,11 @@ class Metrics(Protocol):
 
 
 class NullMetrics:
+    def initialize_metrics(
+        self, streams: list[tuple[str, str]], statuses: list[str]  # noqa: U100
+    ) -> None:
+        return None
+
     def increment_sources_fetched(
         self, source_id: str, status: str  # noqa: U100
     ) -> None:
@@ -128,6 +138,18 @@ class PrometheusMetrics:
         )
         self._app_start_time = time.monotonic()
         self._app_name = "feed_proxy_worker"
+
+    def initialize_metrics(
+        self, streams: list[tuple[str, str]], statuses: list[str]
+    ) -> None:
+        source_ids = {source_id for source_id, _ in streams}
+        for source_id in source_ids:
+            for status in statuses:
+                self._sources_fetched.labels(self._app_name, source_id, status)
+            self._posts_parsed.labels(self._app_name, source_id)
+        for source_id, receiver_id in streams:
+            self._messages_prepared.labels(self._app_name, source_id, receiver_id)
+            self._messages_sent.labels(self._app_name, source_id, receiver_id)
 
     def increment_sources_fetched(self, source_id: str, status: str) -> None:
         self._sources_fetched.labels(self._app_name, source_id, status).inc()

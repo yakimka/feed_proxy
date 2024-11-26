@@ -59,6 +59,12 @@ async def worker(
     post_storage: PostStorage = Provide(get_post_storage),
     outbox_queue: MessagesOutbox = Provide(get_outbox_queue),
 ) -> None:
+    streams = [
+        (source.id, stream.receiver_type)
+        for source in sources
+        for stream in source.streams
+    ]
+    metrics.initialize_metrics(streams, ["ok", "failed"])
     metrics.start_daemon()
 
     source_queue: SourceQueue = asyncio.Queue()
