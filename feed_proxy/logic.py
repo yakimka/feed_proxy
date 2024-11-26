@@ -112,6 +112,7 @@ async def fetch_text_from_url(
         follow_redirects=True, verify=False, timeout=30  # noqa: S501
     ) as client:
         while True:
+            res_text = None
             try:
                 res = await client.get(
                     url,
@@ -122,6 +123,7 @@ async def fetch_text_from_url(
                     },
                     timeout=30.0,
                 )
+                res_text = res.text
                 res.raise_for_status()
             except httpx.HTTPError as e:
                 if retry > 0:
@@ -135,7 +137,10 @@ async def fetch_text_from_url(
                     continue
 
                 logger.warning(
-                    "Error while fetching %s: error %s\n%s", url, type(e).__name__, e
+                    "Error while fetching %s: error %s\n%s",
+                    url,
+                    type(e).__name__,
+                    res_text,
                 )
                 return None
 
