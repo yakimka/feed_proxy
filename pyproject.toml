@@ -40,7 +40,7 @@ prometheus-client = "^0.21.0"
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.13.0"
-pre-commit = "^4.0.1"
+pre-commit = "^4.1.0"
 pytest = "^8.3.3"
 pytest-asyncio = "^0.24.0"
 pytest-cov = "^6.0.0"
