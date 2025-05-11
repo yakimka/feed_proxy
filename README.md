@@ -23,6 +23,76 @@ the second iteration.
 
 </details>
 
+## Using
+
+1. Create a folder for configuration files (by default `config`)
+   ```bash
+   mkdir config
+   ```
+2. Create a configuration file with arbitrary name (e.g. `config.yaml`). Example:
+   ```yaml
+   settings:
+     log_level: "INFO"
+     post_storage: "sqlite"
+     outbox_storage: "sqlite"
+     sqlite_db: "feed_proxy.db"
+     sentry_dsn: "ENV:SENTRY_DSN"
+     metrics_client: "prometheus"
+   handlers:
+     receivers:
+       "@myfeed_robot":
+         type: "telegram_bot"
+         init_options:
+           name: "@myfeed_robot"
+           token: "ENV:MYFEED_ROBOT_TOKEN"
+       my_console_printer:
+         type: console_printer
+         init_options:
+           name: "my_console_printer"
+   sources:
+     guido-van-rossum-blog:
+       fetcher_options:
+        url: http://neopythonic.blogspot.com/feeds/posts/default?alt=rss
+       fetcher_type: fetch_text
+       id: guido-van-rossum-blog
+       parser_options: { }
+       parser_type: rss
+       streams:
+        - active: true
+          intervals:
+            - '*/10 * * * *'
+          message_template: '<a href="${url}">${title}</a>
+       
+       
+          ${source_hash_tags}
+       
+          ${post_hash_tags}
+       
+          '
+          modifiers: [ ]
+          receiver_options:
+            chat_id: '-1001234567890'
+            disable_link_preview: false
+          receiver_type: '@myfeed_robot'
+          squash: true
+       tags:
+        - guido van rossum
+        - blog
+   ```
+3. You can use environment variables in the configuration file.
+   For example, you can use `ENV:MYFEED_ROBOT_TOKEN`
+   to set the token for the Telegram bot.
+4. Also you can use standard yaml anchors to reuse
+   the same configuration for different feeds.
+5. To debug configuration file, you can use:
+   ```bash
+   python -m feed_proxy.cli.config
+   ```
+6Run the service:
+   ```bash
+   python -m feed_proxy.cli.run
+   ```
+
 ## License
 
 [MIT](https://github.com/yakimka/feed_proxy/blob/master/LICENSE)
