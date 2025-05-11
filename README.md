@@ -23,7 +23,7 @@ the second iteration.
 
 </details>
 
-## Using
+## Usage
 
 1. Create a folder for configuration files (by default `config`)
    ```bash
