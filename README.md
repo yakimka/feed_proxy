@@ -88,7 +88,7 @@ the second iteration.
    ```bash
    python -m feed_proxy.cli.config
    ```
-6Run the service:
+6. Run the service:
    ```bash
    python -m feed_proxy.cli.run
    ```
