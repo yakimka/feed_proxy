@@ -6,6 +6,8 @@ import logging
 from typing import TYPE_CHECKING
 
 import httpx
+from curl_cffi import CurlError
+from curl_cffi.requests import AsyncSession
 
 from feed_proxy.entities import Message, Modifier, Post, Source, Stream
 from feed_proxy.handlers import HandlerType, get_handler_by_name
@@ -105,6 +107,16 @@ async def send_messages(messages: list[Message], stream: Stream) -> None:
 
 
 async def fetch_text_from_url(
+    url: str, *, encoding: str = "", retry: int = 0, impersonate: str = ""
+) -> str | None:
+    if impersonate:
+        return await _fetch_with_curl_cffi(
+            url, encoding=encoding, retry=retry, impersonate=impersonate
+        )
+    return await _fetch_with_httpx(url, encoding=encoding, retry=retry)
+
+
+async def _fetch_with_httpx(
     url: str, *, encoding: str = "", retry: int = 0
 ) -> str | None:
     # TODO don't fetch if content is not changed
@@ -128,7 +140,7 @@ async def fetch_text_from_url(
             except httpx.HTTPError as e:
                 if retry > 0:
                     msg = (
-                        f"Failed to fetch {url} with {e} and {retry} retries"
+                        f"[httpx] Failed to fetch {url} with {e} and {retry} retries"
                         " left. Retrying..."
                     )
                     logger.warning(msg)
@@ -137,7 +149,46 @@ async def fetch_text_from_url(
                     continue
 
                 logger.warning(
-                    "Error while fetching %s: error %s\n%s",
+                    "[httpx] Error while fetching %s: error %s\n%s",
+                    url,
+                    type(e).__name__,
+                    res_text,
+                )
+                return None
+
+            if encoding:
+                res.encoding = encoding
+
+            return res.text
+
+
+async def _fetch_with_curl_cffi(
+    url: str, *, encoding: str = "", retry: int = 0, impersonate: str = "firefox"
+) -> str | None:
+    async with AsyncSession() as session:
+        while True:
+            res_text = None
+            try:
+                res = await session.get(
+                    url,
+                    impersonate=impersonate,
+                    timeout=30,
+                )
+                res_text = res.text
+                res.raise_for_status()
+            except CurlError as e:
+                if retry > 0:
+                    msg = (
+                        f"[curl_cffi] Failed to fetch {url} with {e} and {retry} "
+                        "retries left. Retrying..."
+                    )
+                    logger.warning(msg)
+                    retry -= 1
+                    await asyncio.sleep(3.0)
+                    continue
+
+                logger.warning(
+                    "[curl_cffi] Error while fetching %s: error %s\n%s",
                     url,
                     type(e).__name__,
                     res_text,

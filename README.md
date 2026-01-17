@@ -62,12 +62,12 @@ the second iteration.
           intervals:
             - '*/10 * * * *'
           message_template: '<a href="${url}">${title}</a>
-       
-       
+
+
           ${source_hash_tags}
-       
+
           ${post_hash_tags}
-       
+
           '
           modifiers: [ ]
           receiver_options:
