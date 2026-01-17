@@ -22,10 +22,12 @@ class FetchTextOptions(HandlerOptions):
     DESCRIPTIONS = {
         "url": ("URL", ""),
         "encoding": ("Page encoding", ""),
+        "impersonate": ("Browser to impersonate (e.g. firefox, chrome)", ""),
     }
 
     url: str
     encoding: str = ""
+    impersonate: str = ""
 
 
 @register_handler(
@@ -44,7 +46,10 @@ class TextFetcher:
             options.url, self._pause_between_domain_calls_sec
         ):
             return await fetch_text_from_url(
-                options.url, encoding=options.encoding, retry=2
+                options.url,
+                encoding=options.encoding,
+                retry=2,
+                impersonate=options.impersonate,
             )
 
 
