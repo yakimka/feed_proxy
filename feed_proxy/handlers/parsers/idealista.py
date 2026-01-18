@@ -1,6 +1,5 @@
 import asyncio
 import dataclasses
-import hashlib
 import logging
 from typing import Any
 
@@ -73,7 +72,7 @@ def _parse_idealista(html: str) -> list[IdealistaItem]:
             money = price_el.get_text(strip=True) if price_el else ""
 
             details = _extract_details(article)
-            post_id = _make_post_id(_extract_post_id_from_url(url), details)
+            post_id = _make_post_id(_extract_post_id_from_url(url), money)
 
             items.append(
                 IdealistaItem(
@@ -97,10 +96,9 @@ def _extract_post_id_from_url(url: str) -> str:
     return parts[-1] if parts else url
 
 
-def _make_post_id(id_from_url: str, details: list[str]) -> str:
-    # use details hash because we want to show updated posts
-    details_hash = hashlib.sha256("_".join(details).encode("utf-8")).hexdigest()
-    return f"{id_from_url}_{details_hash}"
+def _make_post_id(id_from_url: str, money: str) -> str:
+    # use money hash because we want to show updated posts
+    return f"{id_from_url}_{money}"
 
 
 def _extract_details(article: Tag) -> list[str]:
