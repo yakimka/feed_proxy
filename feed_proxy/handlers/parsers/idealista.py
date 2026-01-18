@@ -34,7 +34,7 @@ class IdealistaItem(Post):
             "source_tags": "; ".join(self.source_tags),
             "source_hash_tags": " ".join(make_hash_tags(self.source_tags)),
             "money": self.money,
-            "details": "; ".join(self.details),
+            "details": " ".join(self.details),
         }
 
 
