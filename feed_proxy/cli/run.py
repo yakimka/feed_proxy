@@ -84,8 +84,8 @@ async def _enqueue_sources(source_queue: SourceQueue, sources: list[Source]) -> 
     while True:
         for source in sources:
             await source_queue.put(source)
-        logger.info("Enqueued %s sources, waiting for 30 minutes", len(sources))
-        await asyncio.sleep(60 * 30)
+        logger.info("Enqueued %s sources, waiting for 10 minutes", len(sources))
+        await asyncio.sleep(60 * 10)
 
 
 async def _fetch_sources(
