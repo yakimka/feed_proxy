@@ -93,21 +93,21 @@ fetchers/parsers/modifiers/receivers. Processors run inside `parse_message_batch
 - Create: `tests/handlers/parsers/test_rss.py` (only this one in this task — others have no behavior
   change beyond the field)
 
-- [ ] add `extras: dict[str, str] = dataclasses.field(default_factory=dict)` to `FeedPost`,
+- [x] add `extras: dict[str, str] = dataclasses.field(default_factory=dict)` to `FeedPost`,
   `RedditPost`, `FotocasaItem`
-- [ ] add `description: str = ""` to `FeedPost` only (description is RSS-specific; other parsers
+- [x] add `description: str = ""` to `FeedPost` only (description is RSS-specific; other parsers
   don't have a natural equivalent in MVP)
-- [ ] in `rss.py:_handler`, populate
+- [x] in `rss.py:_handler`, populate
   `description=entry.get("summary") or entry.get("description") or ""` (description may contain raw
   HTML; MVP stores it verbatim, HTML stripping is out of scope)
-- [ ] update `template_kwargs()` in all three dataclasses to return `{**base, **self.extras}` so
+- [x] update `template_kwargs()` in all three dataclasses to return `{**base, **self.extras}` so
   extras override base by design
-- [ ] include `"description": self.description` in `FeedPost.template_kwargs` base dict
-- [ ] write unit tests for `FeedPost.template_kwargs()`: without extras, with extras adding new key,
+- [x] include `"description": self.description` in `FeedPost.template_kwargs` base dict
+- [x] write unit tests for `FeedPost.template_kwargs()`: without extras, with extras adding new key,
   with extras overriding base field
-- [ ] write a unit test for `rss` parser: `description` populated from `summary`, falls back to
+- [x] write a unit test for `rss` parser: `description` populated from `summary`, falls back to
   `description`, defaults to `""`
-- [ ] run tests — must pass before next task
+- [x] run tests — must pass before next task
 
 ### Task 2: Add `PreSendProcessor` entity and `Stream.pre_send_processors` field
 

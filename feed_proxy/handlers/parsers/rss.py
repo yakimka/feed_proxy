@@ -21,12 +21,14 @@ class FeedPost(Post):
     comments_url: str
     post_tags: tuple | list
     source_tags: tuple | list
+    description: str = ""
+    extras: dict[str, str] = dataclasses.field(default_factory=dict)
 
     def __str__(self) -> str:
         return self.title
 
     def template_kwargs(self) -> dict[str, Any]:
-        return {
+        base = {
             "post_id": self.post_id,
             "title": self.title,
             "url": self.url,
@@ -35,7 +37,9 @@ class FeedPost(Post):
             "source_tags": "; ".join(self.source_tags),
             "post_hash_tags": " ".join(make_hash_tags(self.post_tags)),
             "source_hash_tags": " ".join(make_hash_tags(self.source_tags)),
+            "description": self.description,
         }
+        return {**base, **self.extras}
 
 
 @register_handler(
@@ -72,6 +76,7 @@ def _handler(text: str) -> list[FeedPost]:
                     comments_url=entry.get("comments"),
                     post_tags=get_tags(entry),
                     source_tags=[],
+                    description=entry.get("summary") or entry.get("description") or "",
                 ),
             )
         except Exception:  # noqa: PIE786

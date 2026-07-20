@@ -32,12 +32,13 @@ class FotocasaItem(Post):
     money: str
     details: list[str]
     source_tags: tuple | list
+    extras: dict[str, str] = dataclasses.field(default_factory=dict)
 
     def __str__(self) -> str:
         return self.title
 
     def template_kwargs(self) -> dict[str, Any]:
-        return {
+        base = {
             "post_id": self.post_id,
             "title": self.title,
             "url": self.url,
@@ -46,6 +47,7 @@ class FotocasaItem(Post):
             "money": self.money,
             "details": " ".join(self.details),
         }
+        return {**base, **self.extras}
 
 
 @register_handler(
