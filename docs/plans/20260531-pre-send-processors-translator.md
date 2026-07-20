@@ -240,39 +240,39 @@ exists would crash at import time.
 - Missing `GEMINI_API_KEY` is NOT a startup error — `_get_client()` raises only on first use; the
   per-post `try/except` catches it and writes `on_error_value`.
 
-- [ ] define `TranslatorOptions(HandlerOptions)` with: `source_field: str`, `target_field: str`,
+- [x] define `TranslatorOptions(HandlerOptions)` with: `source_field: str`, `target_field: str`,
   `target_language: str`, `model: str = "gemini-2.0-flash"`,
   `on_error_value: str = "[translation failed]"`; include `DESCRIPTIONS` dict
-- [ ] register `translator` via
+- [x] register `translator` via
   `@register_handler(type=HandlerType.pre_send_processors, options=TranslatorOptions)`
-- [ ] implement `_read_field(post, name)`: returns `post.extras[name]` if present, otherwise
+- [x] implement `_read_field(post, name)`: returns `post.extras[name]` if present, otherwise
   `getattr(post, name, "") or ""`
-- [ ] implement `_get_client()`: lazy module-level client, API key from `GEMINI_API_KEY`; raises if
+- [x] implement `_get_client()`: lazy module-level client, API key from `GEMINI_API_KEY`; raises if
   env var missing
-- [ ] implement `_translate(source, language, model)`: calls Gemini Flash with the prompt
+- [x] implement `_translate(source, language, model)`: calls Gemini Flash with the prompt
   `"Translate the following text to {language}. Output only the translation, no explanations.\n\nText:\n{source}"`;
   returns the translated string
-- [ ] main function `translator(posts, *, options)`: for each post — read source; if empty, skip;
+- [x] main function `translator(posts, *, options)`: for each post — read source; if empty, skip;
   else try `_translate`, on any exception log and use `on_error_value`; write to
   `post.extras[options.target_field]`; continue to next post
-- [ ] write a parametrized test asserting the translator never re-raises for arbitrary exception
+- [x] write a parametrized test asserting the translator never re-raises for arbitrary exception
   types from `_translate` (`Exception`, `RuntimeError`, `KeyError`, etc.) — for each,
   `extras[target_field] == on_error_value` and the next post in the batch is still processed
-- [ ] in `tests/handlers/pre_send_processors/conftest.py`: `make_feed_post` factory fixture with
+- [x] in `tests/handlers/pre_send_processors/conftest.py`: `make_feed_post` factory fixture with
   sensible defaults, `make_translator_options` factory fixture, `stub_gemini` fixture that patches
   `_get_client` and lets each test set the response/exception
-- [ ] test happy path: source field set → `extras[target_field]` == stubbed translation
-- [ ] test chain: `source_field` references a key in `extras` (set by prior step) → reads from
+- [x] test happy path: source field set → `extras[target_field]` == stubbed translation
+- [x] test chain: `source_field` references a key in `extras` (set by prior step) → reads from
   extras
-- [ ] test precedence: both `extras[name]` and attribute `post.<name>` are set → `_read_field`
+- [x] test precedence: both `extras[name]` and attribute `post.<name>` are set → `_read_field`
   returns the extras value
-- [ ] test empty source: source field is `""` → no Gemini call, `extras` unchanged
-- [ ] test error: Gemini stub raises → `extras[target_field] == on_error_value`, log emitted, the
+- [x] test empty source: source field is `""` → no Gemini call, `extras` unchanged
+- [x] test error: Gemini stub raises → `extras[target_field] == on_error_value`, log emitted, the
   NEXT post in the same batch is still processed
-- [ ] test custom `on_error_value`: option override propagates
-- [ ] test missing API key: with `GEMINI_API_KEY` unset, the function does not crash at import; on
+- [x] test custom `on_error_value`: option override propagates
+- [x] test missing API key: with `GEMINI_API_KEY` unset, the function does not crash at import; on
   first call `extras[target_field] == on_error_value`
-- [ ] run tests — must pass before next task
+- [x] run tests — must pass before next task
 
 ### Task 7: Verify acceptance criteria
 
