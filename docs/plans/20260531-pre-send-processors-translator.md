@@ -140,23 +140,23 @@ fetchers/parsers/modifiers/receivers. Processors run inside `parse_message_batch
 imports `feed_proxy.handlers.<value>` for each member. Adding the enum entry before the package
 exists would crash at import time.
 
-- [ ] create empty `feed_proxy/handlers/pre_send_processors/__init__.py` FIRST
-- [ ] add `pre_send_processors = "pre_send_processors"` to the `HandlerType` enum
-- [ ] extend the existing `for si, stream in enumerate(source.streams):` block (
+- [x] create empty `feed_proxy/handlers/pre_send_processors/__init__.py` FIRST
+- [x] add `pre_send_processors = "pre_send_processors"` to the `HandlerType` enum
+- [x] extend the existing `for si, stream in enumerate(source.streams):` block (
   `handlers/__init__.py:154-179`) to also iterate `stream.pre_send_processors`, build the
   `(HandlerType.pre_send_processors, processor.type)` key, append the options to
   `options_to_validate`, add to `used_handlers` — mirror the modifier loop exactly
-- [ ] the subsequent `for handler_type, handler_id in used_handlers:` loop (lines 187-235) is
+- [x] the subsequent `for handler_type, handler_id in used_handlers:` loop (lines 187-235) is
   type-agnostic and needs no change — confirm via test
-- [ ] write a test: `load_handlers()` runs without error after the enum is added (i.e. the new
+- [x] write a test: `load_handlers()` runs without error after the enum is added (i.e. the new
   package is discoverable)
-- [ ] write a test: a config referencing a non-existent `pre_send_processor.type` raises
+- [x] write a test: a config referencing a non-existent `pre_send_processor.type` raises
   `InitHandlersError`
-- [ ] write a test: an invalid `options` dict for a registered processor raises
+- [x] write a test: an invalid `options` dict for a registered processor raises
   `InitHandlersError` — follow the `DummyReceiver` pattern in
   `tests/test_configuration_loader.py:66-80`: register a dummy processor at module scope in the new
   test file via `@register_handler(type=HandlerType.pre_send_processors, ...)`
-- [ ] run tests — must pass before next task
+- [x] run tests — must pass before next task
 
 ### Task 4: Wire `apply_pre_send_processors` into the pipeline with explicit ordering
 
