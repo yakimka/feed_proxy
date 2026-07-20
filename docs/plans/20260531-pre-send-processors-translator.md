@@ -175,36 +175,36 @@ exists would crash at import time.
   deliberately catches its own per-post errors so it never triggers this path — the invariant is
   enforced via a stub processor in tests, not via the translator
 
-- [ ] add
+- [x] add
   `async def apply_pre_send_processors(processors: list[PreSendProcessor], posts: list[Post]) -> list[Post]` —
   sequentially apply each processor (use
   `get_handler_by_name(type=HandlerType.pre_send_processors, ...)`), mirroring
   `apply_modifiers_to_posts`
-- [ ] restructure `parse_message_batches_from_posts`:
+- [x] restructure `parse_message_batches_from_posts`:
     1. iterate `reversed(posts)`, skip those where `is_post_processed`, collect remaining into
        `new_posts` in the same reversed (oldest-first) order produced by the existing loop
     2. call `new_posts = await apply_pre_send_processors(stream.pre_send_processors, new_posts)`
     3. build the `messages` list from `new_posts` (`template_kwargs = post.template_kwargs()`)
     4. compute `to_mark = [post.post_id for post in new_posts]`
     5. call `await post_storage.mark_posts_as_processed(key, to_mark)` ONLY after step 3-4 succeed
-- [ ] preserve the existing "first run" early-return branch (
+- [x] preserve the existing "first run" early-return branch (
   `if not await post_storage.has_posts(key):`) — no processors run there, all post_ids are marked as
   before
-- [ ] preserve the existing squash logic for batches
-- [ ] write a unit test using a stub processor handler that records which posts it sees — assert it
+- [x] preserve the existing squash logic for batches
+- [x] write a unit test using a stub processor handler that records which posts it sees — assert it
   sees ONLY the un-processed posts
-- [ ] write a unit test: empty `pre_send_processors` list → behavior identical to pre-change (same
+- [x] write a unit test: empty `pre_send_processors` list → behavior identical to pre-change (same
   `Message` produced, same posts marked)
-- [ ] write a unit test: a processor that writes `post.extras["x"] = "v"` → resulting
+- [x] write a unit test: a processor that writes `post.extras["x"] = "v"` → resulting
   `messages[0].template_kwargs["x"] == "v"`
-- [ ] write a unit test for `apply_pre_send_processors`: processors are applied in declared order,
+- [x] write a unit test for `apply_pre_send_processors`: processors are applied in declared order,
   output of processor N is visible to processor N+1
-- [ ] write a unit test using a STUB processor (not the translator) that raises an unhandled
+- [x] write a unit test using a STUB processor (not the translator) that raises an unhandled
   exception → `mark_posts_as_processed` is NOT called (verify via mock/stub storage)
-- [ ] write a unit test: two streams on the same source with different `pre_send_processors` — the
+- [x] write a unit test: two streams on the same source with different `pre_send_processors` — the
   second stream's posts do not contain extras written by the first stream's processors (cross-stream
   isolation, relies on the `copy.deepcopy` in `parse_posts:40`)
-- [ ] run tests — must pass before next task
+- [x] run tests — must pass before next task
 
 ### Task 5: Add `google-genai` dependency
 

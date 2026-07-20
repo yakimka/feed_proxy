@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 from typing import Any
 
-from feed_proxy.entities import Message, Modifier, Source, Stream
+from feed_proxy.entities import Message, Modifier, PreSendProcessor, Source, Stream
 from feed_proxy.storage import OutboxItem
 
 
@@ -36,6 +36,7 @@ class ObjectMother:
         squash: bool = True,
         message_template: str = "${title}\n${url}",
         modifiers: Iterable[Modifier] = (),
+        pre_send_processors: Iterable[PreSendProcessor] = (),
     ) -> Stream:
         return Stream(
             receiver_type=receiver_type,
@@ -44,10 +45,19 @@ class ObjectMother:
             squash=squash,
             message_template=message_template,
             modifiers=list(modifiers),
+            pre_send_processors=list(pre_send_processors),
         )
 
     def modifier(self, type: str, options: dict[str, Any]) -> Modifier:
         return Modifier(
+            type=type,
+            options=options,
+        )
+
+    def pre_send_processor(
+        self, type: str, options: dict[str, Any]
+    ) -> PreSendProcessor:
+        return PreSendProcessor(
             type=type,
             options=options,
         )
