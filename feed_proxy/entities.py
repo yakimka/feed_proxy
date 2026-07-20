@@ -36,6 +36,12 @@ class Modifier:
 
 
 @dataclass(kw_only=True)
+class PreSendProcessor:
+    type: str
+    options: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(kw_only=True)
 class Stream:
     receiver_type: str
     receiver_options: dict[str, Any] = field(default_factory=dict)
@@ -43,6 +49,7 @@ class Stream:
     squash: bool = True
     message_template: str
     modifiers: list[Modifier] = field(default_factory=list)
+    pre_send_processors: list[PreSendProcessor] = field(default_factory=list)
 
 
 @dataclass(kw_only=True)

@@ -9,7 +9,14 @@ import httpx
 from curl_cffi import CurlError
 from curl_cffi.requests import AsyncSession
 
-from feed_proxy.entities import Message, Modifier, Post, Source, Stream
+from feed_proxy.entities import (
+    Message,
+    Modifier,
+    Post,
+    PreSendProcessor,
+    Source,
+    Stream,
+)
 from feed_proxy.handlers import HandlerType, get_handler_by_name
 from feed_proxy.utils.http import ACCEPT_HEADER, DEFAULT_UA
 
@@ -58,6 +65,19 @@ async def apply_modifiers_to_posts(
     return posts
 
 
+async def apply_pre_send_processors(
+    processors: list[PreSendProcessor], posts: list[Post]
+) -> list[Post]:
+    for processor in processors:
+        processor_func = get_handler_by_name(
+            name=processor.type,
+            type=HandlerType.pre_send_processors,
+            options=processor.options,
+        )
+        posts = await processor_func(posts)
+    return posts
+
+
 async def parse_message_batches_from_posts(
     posts: list[Post], source: Source, stream: Stream, post_storage: PostStorage
 ) -> list[list[Message]]:
@@ -69,11 +89,16 @@ async def parse_message_batches_from_posts(
         await post_storage.mark_posts_as_processed(key, all_posts)
         return message_batches
 
+    new_posts = [
+        post
+        for post in reversed(posts)
+        if not await post_storage.is_post_processed(key, post.post_id)
+    ]
+    new_posts = await apply_pre_send_processors(stream.pre_send_processors, new_posts)
+
     messages = []
     to_mark = []
-    for post in reversed(posts):
-        if await post_storage.is_post_processed(key, post.post_id):
-            continue
+    for post in new_posts:
         assert stream.message_template, "Stream message template is not set"
         messages.append(
             Message(

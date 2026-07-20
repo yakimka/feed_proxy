@@ -36,6 +36,7 @@ class HandlerType(Enum):
     parsers = "parsers"
     receivers = "receivers"
     modifiers = "modifiers"
+    pre_send_processors = "pre_send_processors"
 
 
 @dataclasses.dataclass
@@ -177,6 +178,20 @@ def init_registered_handlers(configuration: Configuration) -> None:  # noqa: C90
                     )
                 )
                 used_handlers.add(modifier_key)
+            for pi, processor in enumerate(stream.pre_send_processors):
+                processor_key = (HandlerType.pre_send_processors, processor.type)
+                options_to_validate.append(
+                    (
+                        processor.options,
+                        processor_key,
+                        (
+                            "Error while parsing pre_send_processor options for "
+                            f"{source.id}, stream index {si}, "
+                            f"pre_send_processor index {pi}"
+                        ),
+                    )
+                )
+                used_handlers.add(processor_key)
 
     subhandlers_by_name = {
         (item.handler_type, item.name): item for item in configuration.subhandlers

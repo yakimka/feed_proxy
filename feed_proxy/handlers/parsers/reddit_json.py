@@ -18,12 +18,13 @@ class RedditPost(Post):
     comments_url: str
     score: int
     source_tags: tuple | list
+    extras: dict[str, str] = dataclasses.field(default_factory=dict)
 
     def __str__(self) -> str:
         return self.title
 
     def template_kwargs(self) -> dict[str, Any]:
-        return {
+        base = {
             "post_id": self.post_id,
             "title": self.title,
             "url": self.url,
@@ -32,6 +33,7 @@ class RedditPost(Post):
             "source_tags": "; ".join(self.source_tags),
             "source_hash_tags": " ".join(make_hash_tags(self.source_tags)),
         }
+        return {**base, **self.extras}
 
 
 @register_handler(
