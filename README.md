@@ -93,6 +93,49 @@ the second iteration.
    python -m feed_proxy.cli.run
    ```
 
+## Pre-send processors
+
+Pre-send processors enrich posts (e.g. translation) after they've been deduplicated but before the
+message is sent. Unlike `modifiers`, which run on every fetched post (before storage dedup),
+processors only run once per new post, so they're a good place for expensive operations like AI
+calls.
+
+Add a `pre_send_processors` list to a stream. Each processor writes its result into the post's
+`extras`, which are available in `message_template` alongside the post's base fields.
+
+The MVP ships one processor, `translator`, which uses Google Gemini to translate a field into
+another language. It requires the `GEMINI_API_KEY` environment variable to be set.
+
+```yaml
+streams:
+  - receiver_type: telegram
+    message_template: '<b>${title_ua}</b>
+
+      ${description_ua}
+
+      ${url}'
+    pre_send_processors:
+      - type: translator
+        options:
+          source_field: title
+          target_field: title_ua
+          target_language: uk
+      - type: translator
+        options:
+          source_field: description
+          target_field: description_ua
+          target_language: uk
+```
+
+`translator` options:
+
+- `source_field` — name of the field to translate (checked in `extras` first, then post attributes)
+- `target_field` — `extras` key to write the translation to
+- `target_language` — target language for the translation
+- `model` — Gemini model to use (default: `gemini-2.0-flash`)
+- `on_error_value` — value written to `target_field` if translation fails (default:
+  `[translation failed]`)
+
 ## License
 
 [MIT](https://github.com/yakimka/feed_proxy/blob/master/LICENSE)

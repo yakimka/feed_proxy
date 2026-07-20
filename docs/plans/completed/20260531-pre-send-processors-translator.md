@@ -287,9 +287,9 @@ exists would crash at import time.
 
 ### Task 8: [Final] Update documentation and move plan
 
-- [ ] update `README.md`: brief section documenting `pre_send_processors` field on Stream with the
+- [x] update `README.md`: brief section documenting `pre_send_processors` field on Stream with the
   translator example
-- [ ] move this plan to `docs/plans/completed/20260531-pre-send-processors-translator.md`
+- [x] move this plan to `docs/plans/completed/20260531-pre-send-processors-translator.md`
 
 ## Technical Details
 
