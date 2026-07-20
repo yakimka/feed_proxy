@@ -276,14 +276,14 @@ exists would crash at import time.
 
 ### Task 7: Verify acceptance criteria
 
-- [ ] write a sample YAML inline within a test (or in `tests/fixtures/` if appropriate for this
+- [x] write a sample YAML inline within a test (or in `tests/fixtures/` if appropriate for this
   repo) using translator on `title` → `title_ua` and on `description` → `description_ua`; load via
   `load_configuration` + `init_registered_handlers` to confirm validation passes. Do NOT modify
   `config/sources.yaml` (production config — would activate translation in deploy)
-- [ ] verify an existing config WITHOUT `pre_send_processors` still loads and runs
-- [ ] run full test suite (the project test command — `make test` if present, otherwise `pytest`)
-- [ ] run linters: `make lint` if present, otherwise `pre-commit run --all-files`
-- [ ] mypy passes (project uses type hints + py.typed)
+- [x] verify an existing config WITHOUT `pre_send_processors` still loads and runs
+- [x] run full test suite (the project test command — `make test` if present, otherwise `pytest`)
+- [x] run linters: `make lint` if present, otherwise `pre-commit run --all-files`
+- [x] mypy passes (project uses type hints + py.typed)
 
 ### Task 8: [Final] Update documentation and move plan
 

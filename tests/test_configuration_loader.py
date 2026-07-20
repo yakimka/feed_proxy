@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import pytest
+import yaml
 
 from feed_proxy.configuration import (
     Configuration,
@@ -262,3 +263,48 @@ def test_load_configuration_with_invalid_pre_send_processor_options_raises(
     error_msg = "Error while parsing pre_send_processor options for some-source"
     with pytest.raises(InitHandlersError, match=error_msg):
         run_sut(minimal_sources_block)
+
+
+_TRANSLATOR_SAMPLE_YAML = """
+sources:
+  some-source:
+    fetcher_type: fetch_text
+    fetcher_options:
+      url: https://yakimka.me/rss.xml
+    parser_type: rss
+    streams:
+      - receiver_type: console_printer
+        intervals: ["*/10 * * * *"]
+        message_template: "<b>{title_ua}</b>\\n\\n{description_ua}\\n\\n{url}"
+        pre_send_processors:
+          - type: translator
+            options:
+              source_field: title
+              target_field: title_ua
+              target_language: uk
+          - type: translator
+            options:
+              source_field: description
+              target_field: description_ua
+              target_language: uk
+"""
+
+
+def test_load_configuration_with_translator_pre_send_processors(run_sut):
+    config = yaml.safe_load(_TRANSLATOR_SAMPLE_YAML)
+
+    result = run_sut(config)
+
+    processors = result.sources[0].streams[0].pre_send_processors
+    assert [p.type for p in processors] == ["translator", "translator"]
+    assert processors[0].options["target_field"] == "title_ua"
+    assert processors[1].options["target_field"] == "description_ua"
+
+
+def test_load_configuration_without_pre_send_processors_still_works_end_to_end(
+    run_sut, minimal_sources_block
+):
+    result = run_sut(minimal_sources_block)
+
+    assert result.sources[0].streams[0].pre_send_processors == []
+    assert result.sources[0].streams[0].receiver_type == "console_printer"
