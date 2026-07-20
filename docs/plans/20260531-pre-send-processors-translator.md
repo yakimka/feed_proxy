@@ -213,11 +213,15 @@ exists would crash at import time.
 - Modify: `pyproject.toml`
 - Modify: `poetry.lock` (regenerated)
 
-- [ ] add `google-genai` to `[tool.poetry.dependencies]`
-- [ ] run `poetry add google-genai` (adds to pyproject.toml AND locks)
-- [ ] verify import: `poetry run python -c "import google.genai"` exits 0
-- [ ] no test code; dependency-only task
-- [ ] run existing test suite — must still pass before next task
+- [x] add `google-genai` to `[tool.poetry.dependencies]`
+- [x] run `poetry add google-genai` (adds to pyproject.toml AND locks) — pinned to `^1.75.0` instead
+  of latest `^2.12.1`: the 2.x line requires `pydantic>=2.12.5`, which conflicts with `aiogram`'s
+  `pydantic<2.10` constraint; `1.75.0` requires `pydantic>=2.9.0,<3.0.0`, compatible with the
+  already-installed `pydantic 2.9.2`. Also bumped `httpx` from `^0.27.2` to `^0.28` since
+  `google-genai` requires `httpx>=0.28.1`
+- [x] verify import: `poetry run python -c "import google.genai"` exits 0
+- [x] no test code; dependency-only task
+- [x] run existing test suite — must still pass before next task (44 passed)
 
 ### Task 6: Implement `translator` pre-send processor + its tests
 
