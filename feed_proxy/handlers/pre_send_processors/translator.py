@@ -29,17 +29,12 @@ class TranslatorOptions(HandlerOptions):
         "target_field": ("Target field", "Extras key to write the translation to"),
         "target_language": ("Target language", "Language to translate the text to"),
         "model": ("Model", "Gemini model to use"),
-        "on_error_value": (
-            "On error value",
-            "Value written to target field if translation fails",
-        ),
     }
 
     source_field: str
     target_field: str
     target_language: str
-    model: str = "gemini-2.0-flash"
-    on_error_value: str = "[translation failed]"
+    model: str = "gemini-3.5-flash"
 
 
 def _get_client() -> genai.Client:
@@ -82,7 +77,7 @@ async def translator(posts: list[Post], *, options: TranslatorOptions) -> list[P
             logger.exception(
                 "Failed to translate field %s for post %s", options.source_field, post
             )
-            translation = options.on_error_value
+            translation = source
         extras: dict[str, str] = getattr(post, "extras", {})
         extras[options.target_field] = translation
 

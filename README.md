@@ -132,9 +132,9 @@ streams:
 - `source_field` — name of the field to translate (checked in `extras` first, then post attributes)
 - `target_field` — `extras` key to write the translation to
 - `target_language` — target language for the translation
-- `model` — Gemini model to use (default: `gemini-2.0-flash`)
-- `on_error_value` — value written to `target_field` if translation fails (default:
-  `[translation failed]`)
+- `model` — Gemini model to use (default: `gemini-3.5-flash`)
+
+If translation fails, the original (untranslated) source text is written to `target_field`.
 
 ## License
 

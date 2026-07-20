@@ -238,11 +238,12 @@ exists would crash at import time.
   cached in a module global). Tests patch
   `feed_proxy.handlers.pre_send_processors.translator._get_client` to return a stub.
 - Missing `GEMINI_API_KEY` is NOT a startup error — `_get_client()` raises only on first use; the
-  per-post `try/except` catches it and writes `on_error_value`.
+  per-post `try/except` catches it and falls back to the original source text.
 
 - [x] define `TranslatorOptions(HandlerOptions)` with: `source_field: str`, `target_field: str`,
-  `target_language: str`, `model: str = "gemini-2.0-flash"`,
-  `on_error_value: str = "[translation failed]"`; include `DESCRIPTIONS` dict
+  `target_language: str`, `model: str = "gemini-3.5-flash"`; include `DESCRIPTIONS` dict — no
+  `on_error_value` option: on failure the target field is set to the untranslated source text, so
+  there is nothing to configure
 - [x] register `translator` via
   `@register_handler(type=HandlerType.pre_send_processors, options=TranslatorOptions)`
 - [x] implement `_read_field(post, name)`: returns `post.extras[name]` if present, otherwise
@@ -253,11 +254,11 @@ exists would crash at import time.
   `"Translate the following text to {language}. Output only the translation, no explanations.\n\nText:\n{source}"`;
   returns the translated string
 - [x] main function `translator(posts, *, options)`: for each post — read source; if empty, skip;
-  else try `_translate`, on any exception log and use `on_error_value`; write to
-  `post.extras[options.target_field]`; continue to next post
+  else try `_translate`, on any exception log and fall back to `source` (the original,
+  untranslated text); write to `post.extras[options.target_field]`; continue to next post
 - [x] write a parametrized test asserting the translator never re-raises for arbitrary exception
   types from `_translate` (`Exception`, `RuntimeError`, `KeyError`, etc.) — for each,
-  `extras[target_field] == on_error_value` and the next post in the batch is still processed
+  `extras[target_field] == source` and the next post in the batch is still processed
 - [x] in `tests/handlers/pre_send_processors/conftest.py`: `make_feed_post` factory fixture with
   sensible defaults, `make_translator_options` factory fixture, `stub_gemini` fixture that patches
   `_get_client` and lets each test set the response/exception
@@ -267,11 +268,10 @@ exists would crash at import time.
 - [x] test precedence: both `extras[name]` and attribute `post.<name>` are set → `_read_field`
   returns the extras value
 - [x] test empty source: source field is `""` → no Gemini call, `extras` unchanged
-- [x] test error: Gemini stub raises → `extras[target_field] == on_error_value`, log emitted, the
-  NEXT post in the same batch is still processed
-- [x] test custom `on_error_value`: option override propagates
+- [x] test error: Gemini stub raises → `extras[target_field] == source` (untranslated fallback),
+  log emitted, the NEXT post in the same batch is still processed
 - [x] test missing API key: with `GEMINI_API_KEY` unset, the function does not crash at import; on
-  first call `extras[target_field] == on_error_value`
+  first call `extras[target_field] == source` (untranslated fallback)
 - [x] run tests — must pass before next task
 
 ### Task 7: Verify acceptance criteria
@@ -322,7 +322,9 @@ run after dedup (expensive enrichment).
 - `source_field`: read order = `extras[source_field]` → `getattr(post, source_field, "")` (allows
   chaining; extras wins on collision)
 - `target_field`: ALWAYS written to `extras[target_field]` (never mutates base attributes)
-- On per-post error: write `on_error_value` to target_field, log, continue with next post
+- On per-post error: write the original, untranslated `source` text to `target_field`, log,
+  continue with next post — there is no configurable error marker (no `on_error_value` option);
+  the fallback is always the source text itself
 - On unrecoverable error (e.g., bug in processor itself): exception propagates out, batch is NOT
   marked processed, retried next poll
 
@@ -334,10 +336,10 @@ observability easy.
 per-stream processor mutations cannot leak between streams. This invariant is locked in by a test in
 Task 4.
 
-**Chained error markers:** if a chained `source_field` points at a previously-failed extras value (
-containing `on_error_value`), the next processor translates the marker as-is. The operator is
-responsible for setting `on_error_value` to something safe to re-translate or for breaking the chain
-manually (e.g., a guard processor).
+**Chained fallbacks:** if a chained `source_field` points at a previously-failed extras value, that
+value is already the original untranslated text (the fallback), so the next processor in the chain
+simply attempts to translate the same source text again — no error marker propagates through the
+chain.
 
 **Example YAML:**
 
@@ -364,8 +366,8 @@ streams:
 
 - run the bot end-to-end with `GEMINI_API_KEY` set and a real RSS source; observe a Telegram message
   arriving with translated `title_ua` / `description_ua`
-- temporarily set a bad API key → message should still arrive with the `on_error_value` marker in
-  target fields
+- temporarily set a bad API key → message should still arrive, with the untranslated source text
+  in the target fields (fallback, no error marker)
 
 **External system updates:**
 

@@ -65,7 +65,7 @@ async def test_empty_source_skips_translation(
 @pytest.mark.parametrize(
     "exc", [Exception("boom"), RuntimeError("boom"), KeyError("boom")]
 )
-async def test_error_writes_on_error_value_and_continues_batch(
+async def test_error_falls_back_to_source_text_and_continues_batch(
     make_feed_post, make_translator_options, stub_gemini, exc
 ):
     stub_gemini.set_exception(exc)
@@ -75,25 +75,11 @@ async def test_error_writes_on_error_value_and_continues_batch(
 
     result = await translator([failing_post, next_post], options=options)
 
-    assert result[0].extras["title_ua"] == options.on_error_value
-    assert result[1].extras["title_ua"] == options.on_error_value
+    assert result[0].extras["title_ua"] == "Title 1"
+    assert result[1].extras["title_ua"] == "Title 2"
 
 
-async def test_custom_on_error_value(
-    make_feed_post, make_translator_options, stub_gemini
-):
-    stub_gemini.set_exception(RuntimeError("boom"))
-    post = make_feed_post(title="Title")
-    options = make_translator_options(
-        source_field="title", target_field="title_ua", on_error_value="N/A"
-    )
-
-    result = await translator([post], options=options)
-
-    assert result[0].extras["title_ua"] == "N/A"
-
-
-async def test_missing_api_key_does_not_crash(
+async def test_missing_api_key_falls_back_to_source_text(
     make_feed_post, make_translator_options, monkeypatch
 ):
     monkeypatch.setattr(translator_module, "_client", None)
@@ -103,4 +89,4 @@ async def test_missing_api_key_does_not_crash(
 
     result = await translator([post], options=options)
 
-    assert result[0].extras["title_ua"] == options.on_error_value
+    assert result[0].extras["title_ua"] == "Title"
