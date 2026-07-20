@@ -116,18 +116,18 @@ fetchers/parsers/modifiers/receivers. Processors run inside `parse_message_batch
 - Modify: `feed_proxy/entities.py`
 - Modify: `tests/test_configuration_loader.py`
 
-- [ ] add `PreSendProcessor` dataclass mirroring `Modifier`: `type: str`,
+- [x] add `PreSendProcessor` dataclass mirroring `Modifier`: `type: str`,
   `options: dict[str, Any] = field(default_factory=dict)`
-- [ ] add `pre_send_processors: list[PreSendProcessor] = field(default_factory=list)` to `Stream`
-- [ ] no change needed in `configuration.py` — dacite picks the new field automatically because
+- [x] add `pre_send_processors: list[PreSendProcessor] = field(default_factory=list)` to `Stream`
+- [x] no change needed in `configuration.py` — dacite picks the new field automatically because
   `PreSendProcessor` has the same shape as `Modifier`; verify via test, not via code inspection
-- [ ] reuse `run_sut` and `minimal_sources_block` fixtures from
+- [x] reuse `run_sut` and `minimal_sources_block` fixtures from
   `tests/test_configuration_loader.py` — do not create new SUT scaffolding
-- [ ] write a configuration-loader test: a stream config with `pre_send_processors` list parses
+- [x] write a configuration-loader test: a stream config with `pre_send_processors` list parses
   correctly into `Stream` with `PreSendProcessor` instances
-- [ ] write a test that a stream config WITHOUT `pre_send_processors` still parses (defaults to
+- [x] write a test that a stream config WITHOUT `pre_send_processors` still parses (defaults to
   `[]`)
-- [ ] run tests — must pass before next task
+- [x] run tests — must pass before next task
 
 ### Task 3: Create the `pre_send_processors` package, then add `HandlerType` enum entry
 

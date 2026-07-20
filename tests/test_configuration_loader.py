@@ -200,3 +200,25 @@ def test_required_options_need_to_be_presented(configuration_for_typechecking, v
 
     with pytest.raises((LoadConfigurationError, InitHandlersError)):
         load_configuration(configuration_for_typechecking)
+
+
+def test_load_configuration_with_pre_send_processors(run_sut, minimal_sources_block):
+    stream = minimal_sources_block["sources"]["some-source"]["streams"][0]
+    stream["pre_send_processors"] = [
+        {"type": "translator", "options": {"source_field": "title"}}
+    ]
+
+    result = run_sut(minimal_sources_block)
+
+    processors = result.sources[0].streams[0].pre_send_processors
+    assert len(processors) == 1
+    assert processors[0].type == "translator"
+    assert processors[0].options == {"source_field": "title"}
+
+
+def test_load_configuration_without_pre_send_processors_defaults_to_empty_list(
+    run_sut, minimal_sources_block
+):
+    result = run_sut(minimal_sources_block)
+
+    assert result.sources[0].streams[0].pre_send_processors == []
