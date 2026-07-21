@@ -112,11 +112,11 @@ Design decisions & rationale:
 - Create: `tests/utils/__init__.py`
 - Create: `tests/utils/test_text.py`
 
-- [ ] add `def normalize_dedup_value(value: str) -> str: return " ".join(value.split()).casefold()`
-- [ ] write test: collapses internal whitespace and trims leading/trailing
-- [ ] write test: case-folds (incl. a Unicode/Cyrillic example)
-- [ ] write test: empty / whitespace-only string → empty string
-- [ ] run tests - must pass before next task
+- [x] add `def normalize_dedup_value(value: str) -> str: return " ".join(value.split()).casefold()`
+- [x] write test: collapses internal whitespace and trims leading/trailing
+- [x] write test: case-folds (incl. a Unicode/Cyrillic example)
+- [x] write test: empty / whitespace-only string → empty string
+- [x] run tests - must pass before next task
 
 ### Task 3: Add `post_identities` helper to logic
 
