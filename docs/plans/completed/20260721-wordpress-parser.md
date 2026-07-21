@@ -91,9 +91,9 @@
 - [x] verify test coverage is consistent with sibling parsers (96.88% on `wordpress.py`, missing only `__str__`, matching `reddit_json.py`/`rss.py` which also don't test `__str__`)
 
 ### Task 3: [Final] Update documentation
-- [ ] update `README.md` / docs parser list if parsers are enumerated there (grep for `reddit_json`/`rss` in docs; skip if not listed)
-- [ ] update `CLAUDE.md` only if a genuinely new pattern was discovered (unlikely — mirrors existing parser)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] update `README.md` / docs parser list if parsers are enumerated there (grep for `reddit_json`/`rss` in docs; skip if not listed) — no enumerated parser list found (README only shows `parser_type: rss` in an example config), skipped per plan
+- [x] update `CLAUDE.md` only if a genuinely new pattern was discovered (unlikely — mirrors existing parser) — no project `CLAUDE.md` exists; skipped
+- [x] move this plan to `docs/plans/completed/`
 
 ## Post-Completion
 *Items requiring manual intervention or external systems — informational only*
