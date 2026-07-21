@@ -163,11 +163,11 @@ Design decisions & rationale:
 - [x] run tests - must pass before next task
 
 ### Task 6: Verify acceptance criteria
-- [ ] verify Overview requirements: cross-source dedup by title works; guid still protects against edit re-send; ungrouped sources unchanged
-- [ ] verify edge cases: empty title, first-run marking, empty `post_ids`, distinct groups isolated
-- [ ] run full suite: `make test`
-- [ ] run linters/types: `make lint` (pre-commit + mypy)
-- [ ] verify no unintended change to metrics key in `cli/run.py`
+- [x] verify Overview requirements: cross-source dedup by title works; guid still protects against edit re-send; ungrouped sources unchanged
+- [x] verify edge cases: empty title, first-run marking, empty `post_ids`, distinct groups isolated
+- [x] run full suite: `make test`
+- [x] run linters/types: `make lint` (pre-commit + mypy)
+- [x] verify no unintended change to metrics key in `cli/run.py`
 
 ### Task 7: [Final] Update documentation
 - [ ] document `dedup_group` / `dedup_key` in `README.md` with the `x-dedup` anchor example (below)

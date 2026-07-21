@@ -4,7 +4,7 @@ from feed_proxy.utils.text import normalize_dedup_value
 
 
 @pytest.mark.parametrize(
-    ("value", "expected"),
+    "value, expected",
     [
         ("  Hello   World  ", "hello world"),
         ("Foo\tBar\nBaz", "foo bar baz"),

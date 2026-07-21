@@ -75,11 +75,11 @@ class SqlitePostStorage:
             return False
         cursor = self._conn.cursor()
         placeholders = ", ".join("?" for _ in post_ids)
-        cursor.execute(
-            f"SELECT 1 FROM posts WHERE key = ? AND post_id IN ({placeholders}) "
-            f"LIMIT 1",
-            (str(key), *post_ids),
+        query = (
+            f"SELECT 1 FROM posts WHERE key = ? "  # noqa: S608
+            f"AND post_id IN ({placeholders}) LIMIT 1"
         )
+        cursor.execute(query, (str(key), *post_ids))
         return cursor.fetchone() is not None
 
     async def mark_posts_as_processed(
