@@ -106,11 +106,13 @@ Design decisions & rationale:
   ```
 - **`PostStorage` Protocol** (new signatures; `is_post_processed` removed):
   ```python
-  async def has_posts(source_id: str, receiver_type: str) -> bool
-  async def any_processed(dedup_group: str, receiver_type: str, post_ids: list[str]) -> bool
+  async def has_posts(source_id: str, receiver_type: str) -> bool: ...
+  async def any_processed(
+      dedup_group: str, receiver_type: str, post_ids: list[str]
+  ) -> bool: ...
   async def mark_posts_as_processed(
       source_id: str, dedup_group: str, receiver_type: str, post_ids: list[str]
-  ) -> None
+  ) -> None: ...
   ```
 - **`MemoryPostStorage`**: two indexes written together by `mark`:
   - `_owner: set[tuple[str, str]]` keyed `(source_id, receiver_type)` → `has_posts`.
@@ -124,18 +126,22 @@ Design decisions & rationale:
     `(source_id, dedup_group, receiver_type, post_id)` rows.
 - **`logic.parse_message_batches_from_posts`**:
   ```python
-  sid   = source.id
+  sid = source.id
   group = source.dedup_group or source.id
-  recv  = stream.receiver_type
+  recv = stream.receiver_type
 
-  if not await post_storage.has_posts(sid, recv):        # per-source first run
+  if not await post_storage.has_posts(sid, recv):  # per-source first run
       all_identities = [i for p in posts for i in post_identities(p, source.dedup_key)]
       await post_storage.mark_posts_as_processed(sid, group, recv, all_identities)
       return message_batches
 
-  new_posts = [p for p in reversed(posts)
-               if not await post_storage.any_processed(
-                   group, recv, post_identities(p, source.dedup_key))]
+  new_posts = [
+      p
+      for p in reversed(posts)
+      if not await post_storage.any_processed(
+          group, recv, post_identities(p, source.dedup_key)
+      )
+  ]
   ...
   await post_storage.mark_posts_as_processed(sid, group, recv, to_mark)
   ```
@@ -215,13 +221,13 @@ Design decisions & rationale:
 - [x] run full suite - must pass before next task
 
 ### Task 3: Verify acceptance criteria
-- [ ] verify Overview requirements: no first-cycle burst (per-source first-run); cross-source
+- [x] verify Overview requirements: no first-cycle burst (per-source first-run); cross-source
       dedup by title still works; guid edit-resend protection preserved; ungrouped sources unchanged
-- [ ] verify edge cases: empty `post_ids`, distinct groups isolated, cross-stream (receiver_type)
+- [x] verify edge cases: empty `post_ids`, distinct groups isolated, cross-stream (receiver_type)
       isolation within a source/group
-- [ ] run full suite: `make test`
-- [ ] run linters/types: `make lint`
-- [ ] verify no unintended change to the metrics key in `cli/run.py`
+- [x] run full suite: `make test`
+- [x] run linters/types: `make lint`
+- [x] verify no unintended change to the metrics key in `cli/run.py`
 
 ### Task 4: [Final] Update documentation
 - [ ] update `README.md` if the `dedup_group`/`dedup_key` / `x-dedup` section references the old
