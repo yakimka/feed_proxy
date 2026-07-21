@@ -179,6 +179,32 @@ async def test_unhandled_processor_exception_aborts_before_marking(
     assert storage.mark_calls == []
 
 
+def test_post_identities_default_dedup_key_is_post_id_only(make_post):
+    post = make_post(post_id="post-1", title="Some title")
+
+    assert logic.post_identities(post, "post_id") == ["post-1"]
+
+
+def test_post_identities_title_dedup_key_adds_normalized_title(make_post):
+    post = make_post(post_id="post-1", title="  Some   Title  ")
+
+    identities = logic.post_identities(post, "title")
+
+    assert identities == ["post-1", "title:some title"]
+
+
+def test_post_identities_title_dedup_key_empty_title(make_post):
+    post = make_post(post_id="post-1", title="")
+
+    assert logic.post_identities(post, "title") == ["post-1"]
+
+
+def test_post_identities_title_dedup_key_whitespace_only_title(make_post):
+    post = make_post(post_id="post-1", title="   ")
+
+    assert logic.post_identities(post, "title") == ["post-1"]
+
+
 async def test_cross_stream_isolation(mother, make_post, handler_registry):
     async def add_marker(posts: list[Post], *, options=None) -> list[Post]:
         for post in posts:

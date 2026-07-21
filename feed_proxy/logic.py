@@ -19,6 +19,7 @@ from feed_proxy.entities import (
 )
 from feed_proxy.handlers import HandlerType, get_handler_by_name
 from feed_proxy.utils.http import ACCEPT_HEADER, DEFAULT_UA
+from feed_proxy.utils.text import normalize_dedup_value
 
 if TYPE_CHECKING:
     from feed_proxy.storage import PostStorage
@@ -76,6 +77,16 @@ async def apply_pre_send_processors(
         )
         posts = await processor_func(posts)
     return posts
+
+
+def post_identities(post: Post, dedup_key: str) -> list[str]:
+    ids = [post.post_id]
+    if dedup_key != "post_id":
+        raw = getattr(post, dedup_key, "") or ""
+        norm = normalize_dedup_value(raw)
+        if norm:
+            ids.append(f"{dedup_key}:{norm}")
+    return ids
 
 
 async def parse_message_batches_from_posts(

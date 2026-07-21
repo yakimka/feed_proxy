@@ -124,12 +124,12 @@ Design decisions & rationale:
 - Modify: `feed_proxy/logic.py`
 - Modify: `tests/test_logic.py`
 
-- [ ] add `post_identities(post: Post, dedup_key: str) -> list[str]` per Technical Details (uses `normalize_dedup_value`, guards on the **normalized** value)
-- [ ] write test: default `dedup_key="post_id"` → `[post.post_id]` only
-- [ ] write test: `dedup_key="title"` → `[post.post_id, "title:<normalized title>"]`
-- [ ] write test: `dedup_key="title"` with empty title (`""`) → `[post.post_id]` only
-- [ ] write test: `dedup_key="title"` with whitespace-only title (`"   "`) → `[post.post_id]` only (no `"title:"` identity)
-- [ ] run tests - must pass before next task
+- [x] add `post_identities(post: Post, dedup_key: str) -> list[str]` per Technical Details (uses `normalize_dedup_value`, guards on the **normalized** value)
+- [x] write test: default `dedup_key="post_id"` → `[post.post_id]` only
+- [x] write test: `dedup_key="title"` → `[post.post_id, "title:<normalized title>"]`
+- [x] write test: `dedup_key="title"` with empty title (`""`) → `[post.post_id]` only
+- [x] write test: `dedup_key="title"` with whitespace-only title (`"   "`) → `[post.post_id]` only (no `"title:"` identity)
+- [x] run tests - must pass before next task
 
 ### Task 4: Add `any_processed` batch method to storage
 
