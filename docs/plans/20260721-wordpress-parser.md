@@ -69,19 +69,19 @@
 - Create: `feed_proxy/handlers/parsers/wordpress.py`
 - Create: `tests/handlers/parsers/test_wordpress.py`
 
-- [ ] add imports: `dataclasses`, `html`, `json`, `logging`, `typing.Any`; `from feed_proxy.entities import Post`; `from feed_proxy.handlers import HandlerOptions, HandlerType, register_handler`; `from feed_proxy.utils.text import make_hash_tags`; create module `logger`
-- [ ] define `WordpressPost(Post)` dataclass with fields `post_id`, `title`, `url`, `source_tags`, `description=""`, `content=""`, `extras` (default_factory dict); add `__str__` returning `title`
-- [ ] implement `template_kwargs()` returning the base dict (incl. `source_hash_tags` via `make_hash_tags`, `description`, `content`) merged with `extras`
-- [ ] implement `async def wordpress(text, *, options=None) -> list[WordpressPost]` with `@register_handler(type=HandlerType.parsers, return_model=WordpressPost)`, `json.loads`, `isinstance(raw, list)` guard (`logger.warning` + `return []`), top-level array iteration, and field mapping (`str(id)`, `html.unescape(title.rendered)`, `link`, `excerpt.rendered`, `content.rendered`, `source_tags=[]`)
-- [ ] (self-check) confirm handler auto-registers — no manual registry edits required
-- [ ] add `@pytest.fixture()` factory `make_wordpress_post` (Object Mother with sensible defaults) mirroring `test_rss.py` style
-- [ ] add inline helper building a realistic WP posts JSON array (≥2 posts, with HTML entities in a title, populated `excerpt.rendered`/`content.rendered`)
-- [ ] write test: full field mapping success case via `await wordpress(text)` — `post_id == str(id)`, `title`, `url`, `description`, `content` correctly mapped, `source_tags == []`
-- [ ] write test: `title` is HTML-unescaped (e.g. `&#8217;`/`&amp;` decoded)
-- [ ] write test: empty JSON array `[]` → returns `[]` (edge case)
-- [ ] write test: non-list error payload (e.g. `{"code": "rest_invalid_param", ...}`) → returns `[]` (does not raise)
-- [ ] write tests for `template_kwargs()`: base output shape, `extras` adds new key, `extras` overrides base field
-- [ ] run tests: `make test args="tests/handlers/parsers/test_wordpress.py"` — must pass before next task
+- [x] add imports: `dataclasses`, `html`, `json`, `logging`, `typing.Any`; `from feed_proxy.entities import Post`; `from feed_proxy.handlers import HandlerOptions, HandlerType, register_handler`; `from feed_proxy.utils.text import make_hash_tags`; create module `logger`
+- [x] define `WordpressPost(Post)` dataclass with fields `post_id`, `title`, `url`, `source_tags`, `description=""`, `content=""`, `extras` (default_factory dict); add `__str__` returning `title`
+- [x] implement `template_kwargs()` returning the base dict (incl. `source_hash_tags` via `make_hash_tags`, `description`, `content`) merged with `extras`
+- [x] implement `async def wordpress(text, *, options=None) -> list[WordpressPost]` with `@register_handler(type=HandlerType.parsers, return_model=WordpressPost)`, `json.loads`, `isinstance(raw, list)` guard (`logger.warning` + `return []`), top-level array iteration, and field mapping (`str(id)`, `html.unescape(title.rendered)`, `link`, `excerpt.rendered`, `content.rendered`, `source_tags=[]`)
+- [x] (self-check) confirm handler auto-registers — no manual registry edits required
+- [x] add `@pytest.fixture()` factory `make_wordpress_post` (Object Mother with sensible defaults) mirroring `test_rss.py` style
+- [x] add inline helper building a realistic WP posts JSON array (≥2 posts, with HTML entities in a title, populated `excerpt.rendered`/`content.rendered`)
+- [x] write test: full field mapping success case via `await wordpress(text)` — `post_id == str(id)`, `title`, `url`, `description`, `content` correctly mapped, `source_tags == []`
+- [x] write test: `title` is HTML-unescaped (e.g. `&#8217;`/`&amp;` decoded)
+- [x] write test: empty JSON array `[]` → returns `[]` (edge case)
+- [x] write test: non-list error payload (e.g. `{"code": "rest_invalid_param", ...}`) → returns `[]` (does not raise)
+- [x] write tests for `template_kwargs()`: base output shape, `extras` adds new key, `extras` overrides base field
+- [x] run tests: `make test args="tests/handlers/parsers/test_wordpress.py"` — must pass before next task
 
 ### Task 2: Verify acceptance criteria
 - [ ] verify all requirements from Overview are implemented (parser registered, model fields, tag-drop, unescape, `str` post_id, non-list guard)
