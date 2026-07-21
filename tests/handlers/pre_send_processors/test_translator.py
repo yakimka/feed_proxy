@@ -59,7 +59,7 @@ async def test_empty_source_skips_translation(
     result = await translator([post], options=options)
 
     stub_gemini.aio.models.generate_content.assert_not_awaited()
-    assert "title_ua" not in result[0].extras
+    assert result[0].extras["title_ua"] == ""
 
 
 @pytest.mark.parametrize(
@@ -77,6 +77,18 @@ async def test_error_falls_back_to_source_text_and_continues_batch(
 
     assert result[0].extras["title_ua"] == "Title 1"
     assert result[1].extras["title_ua"] == "Title 2"
+
+
+async def test_empty_response_text_falls_back_to_source_text(
+    make_feed_post, make_translator_options, stub_gemini
+):
+    stub_gemini.set_response(None)
+    post = make_feed_post(title="Title")
+    options = make_translator_options(source_field="title", target_field="title_ua")
+
+    result = await translator([post], options=options)
+
+    assert result[0].extras["title_ua"] == "Title"
 
 
 async def test_missing_api_key_falls_back_to_source_text(

@@ -60,6 +60,17 @@ async def test_no_match_leaves_field_unchanged(
     assert result[0].description == "nothing to drop here"
 
 
+async def test_none_field_value_is_treated_as_empty_string(
+    make_feed_post, make_regex_replace_options
+):
+    post = make_feed_post(comments_url=None)
+    options = make_regex_replace_options(field="comments_url", pattern="x")
+
+    result = await regex_replace([post], options=options)
+
+    assert result[0].comments_url == ""
+
+
 async def test_replaces_matches_in_every_post_of_the_batch(
     make_feed_post, make_regex_replace_options
 ):

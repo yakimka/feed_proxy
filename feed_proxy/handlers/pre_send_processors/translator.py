@@ -40,7 +40,10 @@ class TranslatorOptions(HandlerOptions):
 def _get_client() -> genai.Client:
     global _client
     if _client is None:
-        _client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+        _client = genai.Client(
+            api_key=os.environ["GEMINI_API_KEY"],
+            http_options=genai.types.HttpOptions(timeout=30_000),
+        )
     return _client
 
 
@@ -57,7 +60,9 @@ async def _translate(source: str, language: str, model: str) -> str:
         model=model,
         contents=_PROMPT_TEMPLATE.format(language=language, source=source),
     )
-    return response.text or ""
+    if not response.text:
+        raise ValueError("Empty response from translation model")
+    return response.text
 
 
 @register_handler(
@@ -67,7 +72,9 @@ async def _translate(source: str, language: str, model: str) -> str:
 async def translator(posts: list[Post], *, options: TranslatorOptions) -> list[Post]:
     for post in posts:
         source = _read_field(post, options.source_field)
+        extras: dict[str, str] = getattr(post, "extras", {})
         if not source:
+            extras[options.target_field] = source
             continue
         try:
             translation = await _translate(
@@ -78,7 +85,6 @@ async def translator(posts: list[Post], *, options: TranslatorOptions) -> list[P
                 "Failed to translate field %s for post %s", options.source_field, post
             )
             translation = source
-        extras: dict[str, str] = getattr(post, "extras", {})
         extras[options.target_field] = translation
 
     return posts
