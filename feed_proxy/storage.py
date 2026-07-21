@@ -23,6 +23,9 @@ class PostStorage(Protocol):
     async def is_post_processed(self, key: Stringable, post_id: str) -> bool:
         pass
 
+    async def any_processed(self, key: Stringable, post_ids: list[str]) -> bool:
+        pass
+
     async def mark_posts_as_processed(
         self, key: Stringable, post_ids: list[str]
     ) -> None:
@@ -38,6 +41,11 @@ class MemoryPostStorage:
 
     async def is_post_processed(self, key: Stringable, post_id: str) -> bool:
         return post_id in self._data.get(str(key), set())
+
+    async def any_processed(self, key: Stringable, post_ids: list[str]) -> bool:
+        if not post_ids:
+            return False
+        return bool(self._data.get(str(key), set()) & set(post_ids))
 
     async def mark_posts_as_processed(
         self, key: Stringable, post_ids: list[str]
@@ -61,6 +69,18 @@ class SqlitePostStorage:
             (str(key), post_id),
         )
         return bool(cursor.fetchone()[0])
+
+    async def any_processed(self, key: Stringable, post_ids: list[str]) -> bool:
+        if not post_ids:
+            return False
+        cursor = self._conn.cursor()
+        placeholders = ", ".join("?" for _ in post_ids)
+        cursor.execute(
+            f"SELECT 1 FROM posts WHERE key = ? AND post_id IN ({placeholders}) "
+            f"LIMIT 1",
+            (str(key), *post_ids),
+        )
+        return cursor.fetchone() is not None
 
     async def mark_posts_as_processed(
         self, key: Stringable, post_ids: list[str]

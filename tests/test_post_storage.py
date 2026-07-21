@@ -35,3 +35,31 @@ async def test_has_posts_operate_only_on_passed_key(make_sut):
     await sut.mark_posts_as_processed("key", ["mypost"])
 
     assert not await sut.has_posts("another_key")
+
+
+async def test_any_processed_matches_when_any_id_present(make_sut):
+    sut = make_sut()
+    await sut.mark_posts_as_processed("key", ["mypost"])
+
+    assert await sut.any_processed("key", ["other", "mypost"])
+
+
+async def test_any_processed_false_when_no_id_present(make_sut):
+    sut = make_sut()
+    await sut.mark_posts_as_processed("key", ["mypost"])
+
+    assert not await sut.any_processed("key", ["other", "another"])
+
+
+async def test_any_processed_empty_post_ids_returns_false(make_sut):
+    sut = make_sut()
+    await sut.mark_posts_as_processed("key", ["mypost"])
+
+    assert not await sut.any_processed("key", [])
+
+
+async def test_any_processed_operate_only_on_passed_key(make_sut):
+    sut = make_sut()
+    await sut.mark_posts_as_processed("key", ["mypost"])
+
+    assert not await sut.any_processed("another_key", ["mypost"])

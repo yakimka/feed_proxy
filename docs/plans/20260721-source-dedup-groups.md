@@ -137,12 +137,12 @@ Design decisions & rationale:
 - Modify: `feed_proxy/storage.py`
 - Modify: `tests/test_post_storage.py`
 
-- [ ] add `any_processed(self, key, post_ids: list[str]) -> bool` to `PostStorage` Protocol
-- [ ] implement in `MemoryPostStorage` (set intersection; empty list → `False`)
-- [ ] implement in `SqlitePostStorage` (`... post_id IN (<placeholders>) LIMIT 1`; empty list → `False` without querying)
-- [ ] write test (parametrized `make_sut`, both storages): matches when ANY id present
-- [ ] write test: empty `post_ids` → `False`; different key does not match
-- [ ] run tests - must pass before next task
+- [x] add `any_processed(self, key, post_ids: list[str]) -> bool` to `PostStorage` Protocol
+- [x] implement in `MemoryPostStorage` (set intersection; empty list → `False`)
+- [x] implement in `SqlitePostStorage` (`... post_id IN (<placeholders>) LIMIT 1`; empty list → `False` without querying)
+- [x] write test (parametrized `make_sut`, both storages): matches when ANY id present
+- [x] write test: empty `post_ids` → `False`; different key does not match
+- [x] run tests - must pass before next task
 
 ### Task 5: Wire group namespace + multi-identity into `parse_message_batches_from_posts`
 
