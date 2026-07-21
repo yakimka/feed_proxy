@@ -61,3 +61,5 @@ class Source:
     parser_options: dict[str, Any] = field(default_factory=dict)
     tags: list[str] = field(default_factory=list)
     streams: list[Stream]
+    dedup_group: str | None = None
+    dedup_key: str = "post_id"

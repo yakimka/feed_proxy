@@ -99,11 +99,11 @@ Design decisions & rationale:
 - Modify: `feed_proxy/test.py`
 - Modify: `tests/test_configuration_loader.py`
 
-- [ ] add `dedup_group: str | None = None` and `dedup_key: str = "post_id"` to `Source` (kw_only dataclass) with defaults
-- [ ] extend `ObjectMother.source(...)` with `dedup_group: str | None = None` and `dedup_key: str = "post_id"` kwargs, pass through to `Source`
-- [ ] write test: config loader parses a source with `dedup_group` + `dedup_key` set (dacite `from_dict`)
-- [ ] write test: config loader defaults — source without the fields gets `dedup_group is None` and `dedup_key == "post_id"`
-- [ ] run tests - must pass before next task
+- [x] add `dedup_group: str | None = None` and `dedup_key: str = "post_id"` to `Source` (kw_only dataclass) with defaults
+- [x] extend `ObjectMother.source(...)` with `dedup_group: str | None = None` and `dedup_key: str = "post_id"` kwargs, pass through to `Source`
+- [x] write test: config loader parses a source with `dedup_group` + `dedup_key` set (dacite `from_dict`)
+- [x] write test: config loader defaults — source without the fields gets `dedup_group is None` and `dedup_key == "post_id"`
+- [x] run tests - must pass before next task
 
 ### Task 2: Add `normalize_dedup_value` helper
 

@@ -308,3 +308,20 @@ def test_load_configuration_without_pre_send_processors_still_works_end_to_end(
 
     assert result.sources[0].streams[0].pre_send_processors == []
     assert result.sources[0].streams[0].receiver_type == "console_printer"
+
+
+def test_load_configuration_with_dedup_group_and_key(run_sut, minimal_sources_block):
+    minimal_sources_block["sources"]["some-source"]["dedup_group"] = "asturias-news"
+    minimal_sources_block["sources"]["some-source"]["dedup_key"] = "title"
+
+    result = run_sut(minimal_sources_block)
+
+    assert result.sources[0].dedup_group == "asturias-news"
+    assert result.sources[0].dedup_key == "title"
+
+
+def test_load_configuration_dedup_fields_default(run_sut, minimal_sources_block):
+    result = run_sut(minimal_sources_block)
+
+    assert result.sources[0].dedup_group is None
+    assert result.sources[0].dedup_key == "post_id"
