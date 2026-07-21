@@ -15,6 +15,8 @@ class ObjectMother:
         parser_options: dict[str, Any] | None = None,
         tags: Iterable[str] = (),
         streams: Iterable[Stream] | None = None,
+        dedup_group: str | None = None,
+        dedup_key: str = "post_id",
     ) -> Source:
         if streams is None:
             streams = [self.stream()]
@@ -26,6 +28,8 @@ class ObjectMother:
             parser_options=parser_options or {},
             tags=list(tags),
             streams=list(streams),
+            dedup_group=dedup_group,
+            dedup_key=dedup_key,
         )
 
     def stream(

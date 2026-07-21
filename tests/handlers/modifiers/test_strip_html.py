@@ -39,6 +39,17 @@ async def test_plain_text_is_left_unchanged(make_feed_post, make_strip_html_opti
     assert result[0].description == "Just plain text"
 
 
+async def test_none_field_value_is_treated_as_empty_string(
+    make_feed_post, make_strip_html_options
+):
+    post = make_feed_post(comments_url=None)
+    options = make_strip_html_options(field="comments_url")
+
+    result = await strip_html([post], options=options)
+
+    assert result[0].comments_url == ""
+
+
 async def test_strips_tags_in_every_post_of_the_batch(
     make_feed_post, make_strip_html_options
 ):

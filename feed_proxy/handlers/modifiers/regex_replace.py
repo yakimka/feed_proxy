@@ -35,7 +35,7 @@ async def regex_replace(
     compiled = re.compile(options.pattern, re.DOTALL if options.dotall else 0)
 
     def replace_in_post(post: Post) -> Post:
-        value = getattr(post, options.field)
+        value = getattr(post, options.field) or ""
         setattr(post, options.field, compiled.sub(options.replacement, value))
         return post
 

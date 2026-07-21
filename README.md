@@ -103,10 +103,19 @@ calls.
 Add a `pre_send_processors` list to a stream. Each processor writes its result into the post's
 `extras`, which are available in `message_template` alongside the post's base fields.
 
-The MVP ships one processor, `translator`, which uses Google Gemini to translate a field into
-another language. It requires the `GEMINI_API_KEY` environment variable to be set.
+The MVP ships one processor, `llm_prompt`, which runs an arbitrary instruction over a field
+through an LLM (currently Google Gemini) — translation, summarization, or anything else you can
+phrase as a prompt. It requires the `GEMINI_API_KEY` environment variable to be set.
 
 ```yaml
+x_prompts:
+  translate_uk: &translate_uk |
+    Translate the following text to Ukrainian. Output only the translation,
+    no explanations.
+
+    Text:
+    {source}
+
 streams:
   - receiver_type: telegram
     message_template: '<b>${title_ua}</b>
@@ -115,26 +124,82 @@ streams:
 
       ${url}'
     pre_send_processors:
-      - type: translator
+      - type: llm_prompt
         options:
           source_field: title
           target_field: title_ua
-          target_language: uk
-      - type: translator
+          prompt: *translate_uk
+      - type: llm_prompt
         options:
           source_field: description
           target_field: description_ua
-          target_language: uk
+          prompt: *translate_uk
 ```
 
-`translator` options:
+`x_prompts` is not a special config section — it's a plain YAML top-level key used only to define
+a reusable `&translate_uk` anchor, so the same prompt can be referenced (`*translate_uk`) from
+multiple processors without duplicating the text. The config loader ignores unknown top-level keys.
 
-- `source_field` — name of the field to translate (checked in `extras` first, then post attributes)
-- `target_field` — `extras` key to write the translation to
-- `target_language` — target language for the translation
-- `model` — Gemini model to use (default: `gemini-3.5-flash`)
+`llm_prompt` options:
 
-If translation fails, the original (untranslated) source text is written to `target_field`.
+- `source_field` — name of the field to read (checked in `extras` first, then post attributes)
+- `target_field` — `extras` key to write the result to
+- `prompt` — instruction for the model; must contain the `{source}` placeholder, which is replaced
+  with the source text (plain substring replacement, so other `{`/`}` in the prompt or in the
+  source text are left untouched)
+- `on_error_value` — value written to `target_field` if the call fails; defaults to the
+  unprocessed source text (`None`)
+
+Chaining multiple `llm_prompt` processors lets you combine steps — e.g. summarize into
+`extras.summary`, then a second processor reads `source_field: summary` to translate it.
+
+## Source dedup groups
+
+By default, deduplication is scoped to a single source: a post is considered new if its `post_id`
+(guid) hasn't been seen before for that `(source, receiver)` pair. This works well for a single
+feed, but breaks down when the same article is published by multiple sites with different guids
+(e.g. a news item mirrored by `news-site-a.example` and `news-site-b.example`) — each source has its own guid, so
+the duplicate is never filtered.
+
+A source can opt into a shared **dedup group** with a configurable **uniqueness key** to fix this:
+
+- `dedup_group` — sources sharing the same `dedup_group` value share one "already sent" namespace
+  per receiver, instead of each having its own. Sources without `dedup_group` are unaffected
+  (they keep using their own `source.id` as before).
+- `dedup_key` — name of a post field (e.g. `title`) used, **in addition to** the guid, to detect
+  cross-source duplicates. Defaults to `"post_id"`, which means "guid only" (current behavior).
+  When set to another field, a post is skipped if either its guid *or* its normalized field value
+  was already seen anywhere in the group. The field value is normalized by trimming, collapsing
+  whitespace, and case-folding before comparison.
+
+Both fields are optional and default to values that reproduce the original per-source behavior, so
+existing configurations don't need any changes.
+
+```yaml
+x-dedup:
+  local-news: &local-news-dedup
+    dedup_group: "local-news"
+    dedup_key: "title"
+
+sources:
+  news-site-a:
+    <<: [*rss-feed, *local-news-dedup]
+    fetcher_options: { url: "https://news-site-a.example/feed/" }
+    # ...streams...
+  news-site-b:
+    <<: [*rss-feed, *local-news-dedup]
+    fetcher_options: { url: "https://news-site-b.example/feed/" }
+    # ...streams...
+```
+
+With this configuration, an article posted with the same title on both `news-site-a` and `news-site-b`
+is delivered only once, while a title edit on an already-sent article (same guid) still doesn't
+trigger a resend.
+
+Note: first-run detection is scoped per-source, not per-group, so attaching `dedup_group` to
+sources that already have posts in storage does **not** cause an initial burst — each source still
+self-seeds silently on its own first cycle, independent of whether other sources in the group have
+already run.
 
 ## License
 

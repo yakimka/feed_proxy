@@ -28,7 +28,7 @@ class StripHtmlOptions(HandlerOptions):
 )
 async def strip_html(posts: list[Post], *, options: StripHtmlOptions) -> list[Post]:
     def strip_in_post(post: Post) -> Post:
-        value = getattr(post, options.field)
+        value = getattr(post, options.field) or ""
         text = BeautifulSoup(value, "lxml").get_text(separator=options.separator)
         setattr(post, options.field, text.strip())
         return post

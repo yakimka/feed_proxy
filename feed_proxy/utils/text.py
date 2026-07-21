@@ -19,3 +19,7 @@ def make_hash_tags(tags: Iterable[str]) -> list[str]:
 def template_to_text(template_string: str, **kwargs: Any) -> str:
     template = string.Template(template_string)
     return template.safe_substitute(kwargs)
+
+
+def normalize_dedup_value(value: str) -> str:
+    return " ".join(value.split()).casefold()

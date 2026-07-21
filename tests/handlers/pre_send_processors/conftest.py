@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from feed_proxy.handlers.parsers.rss import FeedPost
-from feed_proxy.handlers.pre_send_processors.translator import TranslatorOptions
+from feed_proxy.handlers.pre_send_processors.llm_prompt import LlmPromptOptions
 
 
 @pytest.fixture()
@@ -24,16 +24,17 @@ def make_feed_post():
 
 
 @pytest.fixture()
-def make_translator_options():
-    def _make_translator_options(**kwargs: Any) -> TranslatorOptions:
+def make_llm_prompt_options():
+    def _make_llm_prompt_options(**kwargs: Any) -> LlmPromptOptions:
         defaults = {
             "source_field": "title",
             "target_field": "title_ua",
-            "target_language": "uk",
+            "prompt": "Translate the following text to Ukrainian. "
+            "Output only the translation, no explanations.\n\nText:\n{source}",
         }
-        return TranslatorOptions(**{**defaults, **kwargs})
+        return LlmPromptOptions(**{**defaults, **kwargs})
 
-    return _make_translator_options
+    return _make_llm_prompt_options
 
 
 @pytest.fixture()
@@ -47,7 +48,7 @@ def stub_gemini(monkeypatch):
         client.aio.models.generate_content.side_effect = exc
 
     monkeypatch.setattr(
-        "feed_proxy.handlers.pre_send_processors.translator._get_client",
+        "feed_proxy.handlers.pre_send_processors.llm_prompt._get_client",
         lambda: client,
     )
 
