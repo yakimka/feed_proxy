@@ -11,84 +11,91 @@ from dacite import from_dict
 from feed_proxy.entities import Message, Stream  # noqa: TC001
 
 
-class Stringable(Protocol):
-    def __str__(self) -> str:
-        pass
-
-
 class PostStorage(Protocol):
-    async def has_posts(self, key: Stringable) -> bool:
+    async def has_posts(self, source_id: str, receiver_type: str) -> bool:
         pass
 
-    async def is_post_processed(self, key: Stringable, post_id: str) -> bool:
-        pass
-
-    async def any_processed(self, key: Stringable, post_ids: list[str]) -> bool:
+    async def any_processed(
+        self, dedup_group: str, receiver_type: str, post_ids: list[str]
+    ) -> bool:
         pass
 
     async def mark_posts_as_processed(
-        self, key: Stringable, post_ids: list[str]
+        self,
+        source_id: str,
+        dedup_group: str,
+        receiver_type: str,
+        post_ids: list[str],
     ) -> None:
         pass
 
 
 class MemoryPostStorage:
     def __init__(self) -> None:
-        self._data: dict[str, set[str]] = {}
+        self._owner: set[tuple[str, str]] = set()
+        self._dedup: dict[tuple[str, str], set[str]] = {}
 
-    async def has_posts(self, key: Stringable) -> bool:
-        return bool(self._data.get(str(key)))
+    async def has_posts(self, source_id: str, receiver_type: str) -> bool:
+        return (source_id, receiver_type) in self._owner
 
-    async def is_post_processed(self, key: Stringable, post_id: str) -> bool:
-        return post_id in self._data.get(str(key), set())
-
-    async def any_processed(self, key: Stringable, post_ids: list[str]) -> bool:
+    async def any_processed(
+        self, dedup_group: str, receiver_type: str, post_ids: list[str]
+    ) -> bool:
         if not post_ids:
             return False
-        return bool(self._data.get(str(key), set()) & set(post_ids))
+        return bool(
+            self._dedup.get((dedup_group, receiver_type), set()) & set(post_ids)
+        )
 
     async def mark_posts_as_processed(
-        self, key: Stringable, post_ids: list[str]
+        self,
+        source_id: str,
+        dedup_group: str,
+        receiver_type: str,
+        post_ids: list[str],
     ) -> None:
-        self._data.setdefault(str(key), set()).update(post_ids)
+        self._owner.add((source_id, receiver_type))
+        self._dedup.setdefault((dedup_group, receiver_type), set()).update(post_ids)
 
 
 class SqlitePostStorage:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 
-    async def has_posts(self, key: Stringable) -> bool:
-        cursor = self._conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM posts WHERE key = ?", (str(key),))
-        return bool(cursor.fetchone()[0])
-
-    async def is_post_processed(self, key: Stringable, post_id: str) -> bool:
+    async def has_posts(self, source_id: str, receiver_type: str) -> bool:
         cursor = self._conn.cursor()
         cursor.execute(
-            "SELECT COUNT(*) FROM posts WHERE key = ? AND post_id = ?",
-            (str(key), post_id),
+            "SELECT 1 FROM posts WHERE source_id = ? AND receiver_type = ? LIMIT 1",
+            (source_id, receiver_type),
         )
-        return bool(cursor.fetchone()[0])
+        return cursor.fetchone() is not None
 
-    async def any_processed(self, key: Stringable, post_ids: list[str]) -> bool:
+    async def any_processed(
+        self, dedup_group: str, receiver_type: str, post_ids: list[str]
+    ) -> bool:
         if not post_ids:
             return False
         cursor = self._conn.cursor()
         placeholders = ", ".join("?" for _ in post_ids)
         query = (
-            f"SELECT 1 FROM posts WHERE key = ? "  # noqa: S608
-            f"AND post_id IN ({placeholders}) LIMIT 1"
+            f"SELECT 1 FROM posts WHERE dedup_group = ? "  # noqa: S608
+            f"AND receiver_type = ? AND post_id IN ({placeholders}) LIMIT 1"
         )
-        cursor.execute(query, (str(key), *post_ids))
+        cursor.execute(query, (dedup_group, receiver_type, *post_ids))
         return cursor.fetchone() is not None
 
     async def mark_posts_as_processed(
-        self, key: Stringable, post_ids: list[str]
+        self,
+        source_id: str,
+        dedup_group: str,
+        receiver_type: str,
+        post_ids: list[str],
     ) -> None:
         cursor = self._conn.cursor()
         cursor.executemany(
-            "INSERT INTO posts (key, post_id) VALUES (?, ?)",
-            [(str(key), post_id) for post_id in post_ids],
+            "INSERT INTO posts (source_id, dedup_group, receiver_type, post_id) "
+            "VALUES (?, ?, ?, ?)",
+            [(source_id, dedup_group, receiver_type, pid) for pid in post_ids],
         )
         self._conn.commit()
 
@@ -239,8 +246,10 @@ def create_sqlite_conn(db_path: str) -> sqlite3.Connection:
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS posts (
-            key TEXT NOT NULL,
-            post_id TEXT NOT NULL
+            source_id     TEXT NOT NULL,
+            dedup_group   TEXT NOT NULL,
+            receiver_type TEXT NOT NULL,
+            post_id       TEXT NOT NULL
         );
         """
     )

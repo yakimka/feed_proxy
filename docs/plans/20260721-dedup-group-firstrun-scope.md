@@ -157,25 +157,25 @@ Design decisions & rationale:
 > so `tests/test_logic.py` will fail until Task 2. That is expected — Task 1 is verified by the
 > storage unit tests passing in isolation; the full suite goes green in Task 2.
 
-- [ ] change `create_sqlite_conn` posts table to normalized columns
+- [x] change `create_sqlite_conn` posts table to normalized columns
       `(source_id, dedup_group, receiver_type, post_id)`
-- [ ] update `PostStorage` Protocol to the three new signatures; **remove** `is_post_processed`
-- [ ] remove the now-unused `Stringable` Protocol (no other users after the signature change)
-- [ ] reimplement `MemoryPostStorage` with `_owner` + `_dedup` indexes; `mark` writes both;
+- [x] update `PostStorage` Protocol to the three new signatures; **remove** `is_post_processed`
+- [x] remove the now-unused `Stringable` Protocol (no other users after the signature change)
+- [x] reimplement `MemoryPostStorage` with `_owner` + `_dedup` indexes; `mark` writes both;
       remove `is_post_processed`
-- [ ] reimplement `SqlitePostStorage` (`has_posts`, `any_processed`, `mark_posts_as_processed`)
+- [x] reimplement `SqlitePostStorage` (`has_posts`, `any_processed`, `mark_posts_as_processed`)
       per Technical Details; remove `is_post_processed`
-- [ ] rewrite `tests/test_post_storage.py` to new signatures (parametrized `make_sut`, both
+- [x] rewrite `tests/test_post_storage.py` to new signatures (parametrized `make_sut`, both
       storages); remove the `is_post_processed` contract test
-- [ ] write test: `has_posts` scoped to `(source_id, receiver_type)` — true only after that
+- [x] write test: `has_posts` scoped to `(source_id, receiver_type)` — true only after that
       source is marked; different source_id / different receiver_type → `False`
-- [ ] write test: `any_processed` matches by `(dedup_group, receiver_type)` across sources —
+- [x] write test: `any_processed` matches by `(dedup_group, receiver_type)` across sources —
       mark under `source_id="a"` with `dedup_group="g"`, query group `"g"` → matches
-- [ ] write test: `any_processed` empty `post_ids` → `False`; wrong receiver_type → `False`
-- [ ] write test: a single `mark_posts_as_processed(sid, group, recv, [id])` populates **both**
+- [x] write test: `any_processed` empty `post_ids` → `False`; wrong receiver_type → `False`
+- [x] write test: a single `mark_posts_as_processed(sid, group, recv, [id])` populates **both**
       indexes atomically — afterwards `has_posts(sid, recv)` is `True` **and**
       `any_processed(group, recv, [id])` is `True` (the contract first-run seeding relies on)
-- [ ] run storage tests - must pass before next task
+- [x] run storage tests - must pass before next task
 
 ### Task 2: Wire owner/dedup scopes into `parse_message_batches_from_posts`
 

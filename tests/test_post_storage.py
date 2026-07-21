@@ -17,49 +17,69 @@ def make_sut(request):
     return _make_sut
 
 
-async def test_can_mark_posts_as_processed_and_check_it(make_sut):
+async def test_has_posts_true_only_after_source_marked(make_sut):
     sut = make_sut()
 
-    assert not await sut.has_posts("key")
-    assert not await sut.is_post_processed("key", "mypost")
+    assert not await sut.has_posts("source", "telegram")
 
-    await sut.mark_posts_as_processed("key", ["mypost"])
+    await sut.mark_posts_as_processed("source", "group", "telegram", ["mypost"])
 
-    assert await sut.has_posts("key")
-    assert await sut.is_post_processed("key", "mypost")
+    assert await sut.has_posts("source", "telegram")
 
 
-async def test_has_posts_operate_only_on_passed_key(make_sut):
+async def test_has_posts_false_for_different_source_id(make_sut):
     sut = make_sut()
+    await sut.mark_posts_as_processed("source", "group", "telegram", ["mypost"])
 
-    await sut.mark_posts_as_processed("key", ["mypost"])
-
-    assert not await sut.has_posts("another_key")
+    assert not await sut.has_posts("another_source", "telegram")
 
 
-async def test_any_processed_matches_when_any_id_present(make_sut):
+async def test_has_posts_false_for_different_receiver_type(make_sut):
     sut = make_sut()
-    await sut.mark_posts_as_processed("key", ["mypost"])
+    await sut.mark_posts_as_processed("source", "group", "telegram", ["mypost"])
 
-    assert await sut.any_processed("key", ["other", "mypost"])
+    assert not await sut.has_posts("source", "rss")
+
+
+async def test_any_processed_matches_by_dedup_group_across_sources(make_sut):
+    sut = make_sut()
+    await sut.mark_posts_as_processed("a", "g", "telegram", ["mypost"])
+
+    assert await sut.any_processed("g", "telegram", ["other", "mypost"])
 
 
 async def test_any_processed_false_when_no_id_present(make_sut):
     sut = make_sut()
-    await sut.mark_posts_as_processed("key", ["mypost"])
+    await sut.mark_posts_as_processed("source", "group", "telegram", ["mypost"])
 
-    assert not await sut.any_processed("key", ["other", "another"])
+    assert not await sut.any_processed("group", "telegram", ["other", "another"])
 
 
 async def test_any_processed_empty_post_ids_returns_false(make_sut):
     sut = make_sut()
-    await sut.mark_posts_as_processed("key", ["mypost"])
+    await sut.mark_posts_as_processed("source", "group", "telegram", ["mypost"])
 
-    assert not await sut.any_processed("key", [])
+    assert not await sut.any_processed("group", "telegram", [])
 
 
-async def test_any_processed_operate_only_on_passed_key(make_sut):
+async def test_any_processed_false_for_different_dedup_group(make_sut):
     sut = make_sut()
-    await sut.mark_posts_as_processed("key", ["mypost"])
+    await sut.mark_posts_as_processed("source", "group", "telegram", ["mypost"])
 
-    assert not await sut.any_processed("another_key", ["mypost"])
+    assert not await sut.any_processed("another_group", "telegram", ["mypost"])
+
+
+async def test_any_processed_false_for_different_receiver_type(make_sut):
+    sut = make_sut()
+    await sut.mark_posts_as_processed("source", "group", "telegram", ["mypost"])
+
+    assert not await sut.any_processed("group", "rss", ["mypost"])
+
+
+async def test_mark_posts_as_processed_populates_both_indexes_atomically(make_sut):
+    sut = make_sut()
+
+    await sut.mark_posts_as_processed("source", "group", "telegram", ["mypost"])
+
+    assert await sut.has_posts("source", "telegram")
+    assert await sut.any_processed("group", "telegram", ["mypost"])
