@@ -103,10 +103,19 @@ calls.
 Add a `pre_send_processors` list to a stream. Each processor writes its result into the post's
 `extras`, which are available in `message_template` alongside the post's base fields.
 
-The MVP ships one processor, `translator`, which uses Google Gemini to translate a field into
-another language. It requires the `GEMINI_API_KEY` environment variable to be set.
+The MVP ships one processor, `llm_prompt`, which runs an arbitrary instruction over a field
+through an LLM (currently Google Gemini) — translation, summarization, or anything else you can
+phrase as a prompt. It requires the `GEMINI_API_KEY` environment variable to be set.
 
 ```yaml
+x_prompts:
+  translate_uk: &translate_uk |
+    Translate the following text to Ukrainian. Output only the translation,
+    no explanations.
+
+    Text:
+    {source}
+
 streams:
   - receiver_type: telegram
     message_template: '<b>${title_ua}</b>
@@ -115,26 +124,34 @@ streams:
 
       ${url}'
     pre_send_processors:
-      - type: translator
+      - type: llm_prompt
         options:
           source_field: title
           target_field: title_ua
-          target_language: uk
-      - type: translator
+          prompt: *translate_uk
+      - type: llm_prompt
         options:
           source_field: description
           target_field: description_ua
-          target_language: uk
+          prompt: *translate_uk
 ```
 
-`translator` options:
+`x_prompts` is not a special config section — it's a plain YAML top-level key used only to define
+a reusable `&translate_uk` anchor, so the same prompt can be referenced (`*translate_uk`) from
+multiple processors without duplicating the text. The config loader ignores unknown top-level keys.
 
-- `source_field` — name of the field to translate (checked in `extras` first, then post attributes)
-- `target_field` — `extras` key to write the translation to
-- `target_language` — target language for the translation
-- `model` — Gemini model to use (default: `gemini-3.5-flash`)
+`llm_prompt` options:
 
-If translation fails, the original (untranslated) source text is written to `target_field`.
+- `source_field` — name of the field to read (checked in `extras` first, then post attributes)
+- `target_field` — `extras` key to write the result to
+- `prompt` — instruction for the model; must contain the `{source}` placeholder, which is replaced
+  with the source text (plain substring replacement, so other `{`/`}` in the prompt or in the
+  source text are left untouched)
+- `on_error_value` — value written to `target_field` if the call fails; defaults to the
+  unprocessed source text (`None`)
+
+Chaining multiple `llm_prompt` processors lets you combine steps — e.g. summarize into
+`extras.summary`, then a second processor reads `source_field: summary` to translate it.
 
 ## License
 

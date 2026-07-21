@@ -14,27 +14,32 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_client: genai.Client | None = None
+_MODEL = "gemini-3.5-flash"
 
-_PROMPT_TEMPLATE = (
-    "Translate the following text to {language}. Output only the translation, "
-    "no explanations.\n\nText:\n{source}"
-)
+_client: genai.Client | None = None
 
 
 @dataclasses.dataclass
-class TranslatorOptions(HandlerOptions):
+class LlmPromptOptions(HandlerOptions):
     DESCRIPTIONS = {
-        "source_field": ("Source field", "Post field or extras key to translate"),
-        "target_field": ("Target field", "Extras key to write the translation to"),
-        "target_language": ("Target language", "Language to translate the text to"),
-        "model": ("Model", "Gemini model to use"),
+        "source_field": ("Source field", "Post field or extras key to read text from"),
+        "target_field": ("Target field", "Extras key to write the result to"),
+        "prompt": (
+            "Prompt",
+            "Instruction for the model; must contain the {source} placeholder, "
+            "which is replaced with the source text",
+        ),
+        "on_error_value": (
+            "On error value",
+            "Value written to target field on failure; defaults to the "
+            "unprocessed source text",
+        ),
     }
 
     source_field: str
     target_field: str
-    target_language: str
-    model: str = "gemini-3.5-flash"
+    prompt: str
+    on_error_value: str | None = None
 
 
 def _get_client() -> genai.Client:
@@ -54,22 +59,22 @@ def _read_field(post: Post, name: str) -> str:
     return getattr(post, name, "") or ""
 
 
-async def _translate(source: str, language: str, model: str) -> str:
+async def _run_prompt(prompt: str, source: str) -> str:
     client = _get_client()
     response = await client.aio.models.generate_content(
-        model=model,
-        contents=_PROMPT_TEMPLATE.format(language=language, source=source),
+        model=_MODEL,
+        contents=prompt.replace("{source}", source),
     )
     if not response.text:
-        raise ValueError("Empty response from translation model")
+        raise ValueError("Empty response from model")
     return response.text
 
 
 @register_handler(
     type=HandlerType.pre_send_processors,
-    options=TranslatorOptions,
+    options=LlmPromptOptions,
 )
-async def translator(posts: list[Post], *, options: TranslatorOptions) -> list[Post]:
+async def llm_prompt(posts: list[Post], *, options: LlmPromptOptions) -> list[Post]:
     for post in posts:
         source = _read_field(post, options.source_field)
         extras: dict[str, str] = getattr(post, "extras", {})
@@ -77,14 +82,16 @@ async def translator(posts: list[Post], *, options: TranslatorOptions) -> list[P
             extras[options.target_field] = source
             continue
         try:
-            translation = await _translate(
-                source, options.target_language, options.model
-            )
+            result = await _run_prompt(options.prompt, source)
         except Exception:  # noqa: PIE786
             logger.exception(
-                "Failed to translate field %s for post %s", options.source_field, post
+                "Failed to run llm_prompt for field %s of post %s",
+                options.source_field,
+                post,
             )
-            translation = source
-        extras[options.target_field] = translation
+            result = (
+                options.on_error_value if options.on_error_value is not None else source
+            )
+        extras[options.target_field] = result
 
     return posts

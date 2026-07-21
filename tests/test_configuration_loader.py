@@ -265,7 +265,7 @@ def test_load_configuration_with_invalid_pre_send_processor_options_raises(
         run_sut(minimal_sources_block)
 
 
-_TRANSLATOR_SAMPLE_YAML = """
+_LLM_PROMPT_SAMPLE_YAML = """
 sources:
   some-source:
     fetcher_type: fetch_text
@@ -277,26 +277,26 @@ sources:
         intervals: ["*/10 * * * *"]
         message_template: "<b>{title_ua}</b>\\n\\n{description_ua}\\n\\n{url}"
         pre_send_processors:
-          - type: translator
+          - type: llm_prompt
             options:
               source_field: title
               target_field: title_ua
-              target_language: uk
-          - type: translator
+              prompt: "Translate to Ukrainian:\\n{source}"
+          - type: llm_prompt
             options:
               source_field: description
               target_field: description_ua
-              target_language: uk
+              prompt: "Translate to Ukrainian:\\n{source}"
 """
 
 
-def test_load_configuration_with_translator_pre_send_processors(run_sut):
-    config = yaml.safe_load(_TRANSLATOR_SAMPLE_YAML)
+def test_load_configuration_with_llm_prompt_pre_send_processors(run_sut):
+    config = yaml.safe_load(_LLM_PROMPT_SAMPLE_YAML)
 
     result = run_sut(config)
 
     processors = result.sources[0].streams[0].pre_send_processors
-    assert [p.type for p in processors] == ["translator", "translator"]
+    assert [p.type for p in processors] == ["llm_prompt", "llm_prompt"]
     assert processors[0].options["target_field"] == "title_ua"
     assert processors[1].options["target_field"] == "description_ua"
 
