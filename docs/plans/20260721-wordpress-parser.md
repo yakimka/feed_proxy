@@ -84,11 +84,11 @@
 - [x] run tests: `make test args="tests/handlers/parsers/test_wordpress.py"` — must pass before next task
 
 ### Task 2: Verify acceptance criteria
-- [ ] verify all requirements from Overview are implemented (parser registered, model fields, tag-drop, unescape, `str` post_id, non-list guard)
-- [ ] verify edge cases handled (empty array, non-list error payload, extras merge/override, HTML entities)
-- [ ] run full test suite: `make test`
-- [ ] run dead-fixtures check (part of `make test`) and lint/type checks: `make lint`
-- [ ] verify test coverage is consistent with sibling parsers
+- [x] verify all requirements from Overview are implemented (parser registered, model fields, tag-drop, unescape, `str` post_id, non-list guard)
+- [x] verify edge cases handled (empty array, non-list error payload, extras merge/override, HTML entities)
+- [x] run full test suite: `make test` (docker unavailable in this environment; ran equivalent `pytest --cov=tests --cov=feed_proxy` directly — 104 passed)
+- [x] run dead-fixtures check (part of `make test`) and lint/type checks: `make lint` (ran `pytest --dead-fixtures`, `flake8`, `mypy` directly — all clean)
+- [x] verify test coverage is consistent with sibling parsers (96.88% on `wordpress.py`, missing only `__str__`, matching `reddit_json.py`/`rss.py` which also don't test `__str__`)
 
 ### Task 3: [Final] Update documentation
 - [ ] update `README.md` / docs parser list if parsers are enumerated there (grep for `reddit_json`/`rss` in docs; skip if not listed)
