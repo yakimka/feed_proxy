@@ -1,7 +1,7 @@
 # Source Dedup Groups with Configurable Uniqueness Key
 
 ## Overview
-Enable linking multiple sources into a shared **dedup group** with a configurable **uniqueness key**, so that the same article published by different sites (e.g. `migijon.com` and `mioviedo.com`) — same title/content but different guid — is delivered to a channel only once.
+Enable linking multiple sources into a shared **dedup group** with a configurable **uniqueness key**, so that the same article published by different sites (e.g. `news-site-a.example` and `news-site-b.example`) — same title/content but different guid — is delivered to a channel only once.
 
 Problem it solves: today deduplication is bound to `(source.id, receiver_type)` + `post.post_id` (guid). Two different sites have different `source.id` and different guids, so cross-source duplicates are never filtered.
 
@@ -180,23 +180,23 @@ Design decisions & rationale:
 **Production wiring** (`sources.prod.yaml`, done by user when ready):
 ```yaml
 x-dedup:
-  asturias: &asturias-dedup
-    dedup_group: "asturias-news"
+  local-news: &local-news-dedup
+    dedup_group: "local-news"
     dedup_key: "title"
 
 sources:
-  mi-gijon:
-    <<: [*rss-feed, *asturias-dedup]
-    fetcher_options: { url: "https://migijon.com/feed/" }
+  news-site-a:
+    <<: [*rss-feed, *local-news-dedup]
+    fetcher_options: { url: "https://news-site-a.example/feed/" }
     # ...streams...
-  mi-oviedo:
-    <<: [*rss-feed, *asturias-dedup]
-    fetcher_options: { url: "https://mioviedo.com/feed/" }
+  news-site-b:
+    <<: [*rss-feed, *local-news-dedup]
+    fetcher_options: { url: "https://news-site-b.example/feed/" }
     # ...streams...
 ```
 
 **Migration note (initial burst on the first cycle — accepted):** attaching `dedup_group` creates a fresh, empty group key. The first-run guard (`logic.py:86`) protects only the **first** grouped source processed in that cycle — it marks its current posts as processed **without sending**. But the group key is now non-empty, so every **subsequent** source in the same group sees `has_posts(group_key) == True` (not a first run) and immediately sends all of its posts that do **not** overlap the first source's identities. So expect a one-time initial burst from the 2nd+ sources on first deploy of a group, not a silent no-op. This is accepted behavior. (Overlapping/duplicate articles are still correctly deduped — the burst is only the genuinely non-overlapping tail of each additional feed.)
 
 **Manual verification after deploy:**
-- Confirm a duplicate article present on both `migijon.com` and `mioviedo.com` is delivered to the channel only once.
+- Confirm a duplicate article present on both `news-site-a.example` and `news-site-b.example` is delivered to the channel only once.
 - Confirm editing a title on one source does not re-send (guid path).

@@ -311,12 +311,12 @@ def test_load_configuration_without_pre_send_processors_still_works_end_to_end(
 
 
 def test_load_configuration_with_dedup_group_and_key(run_sut, minimal_sources_block):
-    minimal_sources_block["sources"]["some-source"]["dedup_group"] = "asturias-news"
+    minimal_sources_block["sources"]["some-source"]["dedup_group"] = "local-news"
     minimal_sources_block["sources"]["some-source"]["dedup_key"] = "title"
 
     result = run_sut(minimal_sources_block)
 
-    assert result.sources[0].dedup_group == "asturias-news"
+    assert result.sources[0].dedup_group == "local-news"
     assert result.sources[0].dedup_key == "title"
 
 

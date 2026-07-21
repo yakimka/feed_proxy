@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import dataclasses
 import logging
 import os
@@ -15,6 +16,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _MODEL = "gemini-3.5-flash"
+
+_MAX_CONCURRENCY = 5
 
 _client: genai.Client | None = None
 
@@ -70,17 +73,15 @@ async def _run_prompt(prompt: str, source: str) -> str:
     return response.text
 
 
-@register_handler(
-    type=HandlerType.pre_send_processors,
-    options=LlmPromptOptions,
-)
-async def llm_prompt(posts: list[Post], *, options: LlmPromptOptions) -> list[Post]:
-    for post in posts:
-        source = _read_field(post, options.source_field)
-        extras: dict[str, str] = getattr(post, "extras", {})
-        if not source:
-            extras[options.target_field] = source
-            continue
+async def _process_post(
+    post: Post, options: LlmPromptOptions, semaphore: asyncio.Semaphore
+) -> None:
+    source = _read_field(post, options.source_field)
+    extras: dict[str, str] = getattr(post, "extras", {})
+    if not source:
+        extras[options.target_field] = source
+        return
+    async with semaphore:
         try:
             result = await _run_prompt(options.prompt, source)
         except Exception:  # noqa: PIE786
@@ -92,6 +93,19 @@ async def llm_prompt(posts: list[Post], *, options: LlmPromptOptions) -> list[Po
             result = (
                 options.on_error_value if options.on_error_value is not None else source
             )
-        extras[options.target_field] = result
+        else:
+            logger.info(
+                "Successfully ran llm_prompt for field %s",
+                options.source_field,
+            )
+    extras[options.target_field] = result
 
+
+@register_handler(
+    type=HandlerType.pre_send_processors,
+    options=LlmPromptOptions,
+)
+async def llm_prompt(posts: list[Post], *, options: LlmPromptOptions) -> list[Post]:
+    semaphore = asyncio.Semaphore(_MAX_CONCURRENCY)
+    await asyncio.gather(*(_process_post(post, options, semaphore) for post in posts))
     return posts

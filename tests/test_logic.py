@@ -247,15 +247,11 @@ async def test_cross_stream_isolation(mother, make_post, handler_registry):
 
 
 async def test_shared_dedup_group_cross_source_title_dedup(mother, make_post):
-    source_a = mother.source(
-        id="site-a", dedup_group="asturias-news", dedup_key="title"
-    )
-    source_b = mother.source(
-        id="site-b", dedup_group="asturias-news", dedup_key="title"
-    )
+    source_a = mother.source(id="site-a", dedup_group="local-news", dedup_key="title")
+    source_b = mother.source(id="site-b", dedup_group="local-news", dedup_key="title")
     stream = mother.stream()
     storage = MemoryPostStorage()
-    group = "asturias-news"
+    group = "local-news"
     recv = stream.receiver_type
     await storage.mark_posts_as_processed("site-a", group, recv, ["seed"])
     await storage.mark_posts_as_processed("site-b", group, recv, ["seed"])
@@ -275,15 +271,11 @@ async def test_shared_dedup_group_cross_source_title_dedup(mother, make_post):
 
 
 async def test_shared_dedup_group_guid_edit_resend_protection(mother, make_post):
-    source_a = mother.source(
-        id="site-a", dedup_group="asturias-news", dedup_key="title"
-    )
-    source_b = mother.source(
-        id="site-b", dedup_group="asturias-news", dedup_key="title"
-    )
+    source_a = mother.source(id="site-a", dedup_group="local-news", dedup_key="title")
+    source_b = mother.source(id="site-b", dedup_group="local-news", dedup_key="title")
     stream = mother.stream()
     storage = MemoryPostStorage()
-    group = "asturias-news"
+    group = "local-news"
     recv = stream.receiver_type
     await storage.mark_posts_as_processed("site-a", group, recv, ["seed"])
     await storage.mark_posts_as_processed("site-b", group, recv, ["seed"])
@@ -324,10 +316,10 @@ async def test_distinct_dedup_groups_are_not_cross_filtered(mother, make_post):
 async def test_first_run_of_group_marks_all_identities_without_sending(
     mother, make_post
 ):
-    source = mother.source(id="site-a", dedup_group="asturias-news", dedup_key="title")
+    source = mother.source(id="site-a", dedup_group="local-news", dedup_key="title")
     stream = mother.stream()
     storage = MemoryPostStorage()
-    group = "asturias-news"
+    group = "local-news"
     recv = stream.receiver_type
     post = make_post(post_id="guid-a", title="Some Article")
 

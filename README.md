@@ -158,7 +158,7 @@ Chaining multiple `llm_prompt` processors lets you combine steps — e.g. summar
 By default, deduplication is scoped to a single source: a post is considered new if its `post_id`
 (guid) hasn't been seen before for that `(source, receiver)` pair. This works well for a single
 feed, but breaks down when the same article is published by multiple sites with different guids
-(e.g. a news item mirrored by `migijon.com` and `mioviedo.com`) — each source has its own guid, so
+(e.g. a news item mirrored by `news-site-a.example` and `news-site-b.example`) — each source has its own guid, so
 the duplicate is never filtered.
 
 A source can opt into a shared **dedup group** with a configurable **uniqueness key** to fix this:
@@ -177,22 +177,22 @@ existing configurations don't need any changes.
 
 ```yaml
 x-dedup:
-  asturias: &asturias-dedup
-    dedup_group: "asturias-news"
+  local-news: &local-news-dedup
+    dedup_group: "local-news"
     dedup_key: "title"
 
 sources:
-  mi-gijon:
-    <<: [*rss-feed, *asturias-dedup]
-    fetcher_options: { url: "https://migijon.com/feed/" }
+  news-site-a:
+    <<: [*rss-feed, *local-news-dedup]
+    fetcher_options: { url: "https://news-site-a.example/feed/" }
     # ...streams...
-  mi-oviedo:
-    <<: [*rss-feed, *asturias-dedup]
-    fetcher_options: { url: "https://mioviedo.com/feed/" }
+  news-site-b:
+    <<: [*rss-feed, *local-news-dedup]
+    fetcher_options: { url: "https://news-site-b.example/feed/" }
     # ...streams...
 ```
 
-With this configuration, an article posted with the same title on both `mi-gijon` and `mi-oviedo`
+With this configuration, an article posted with the same title on both `news-site-a` and `news-site-b`
 is delivered only once, while a title edit on an already-sent article (same guid) still doesn't
 trigger a resend.
 

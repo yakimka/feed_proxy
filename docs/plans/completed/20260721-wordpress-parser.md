@@ -99,7 +99,7 @@
 *Items requiring manual intervention or external systems — informational only*
 
 **Manual verification:**
-- Smoke test against a real endpoint, e.g. `https://mioviedo.com/wp-json/wp/v2/posts?per_page=5&orderby=date&order=desc`, and confirm parsed `WordpressPost` objects look correct.
+- Smoke test against a real endpoint, e.g. `https://news-site-b.example/wp-json/wp/v2/posts?per_page=5&orderby=date&order=desc`, and confirm parsed `WordpressPost` objects look correct.
 
 **External system updates:**
 - Add a real WordPress source to `sources.prod.yaml` using `fetcher_type: fetch_text` + `parser_type: wordpress` with the static `wp/v2/posts` URL, appropriate `source_tags`, message template referencing `${title}`/`${url}` (and optionally `${description}`/`${content}`), and stream/receiver config. This is deployment-side, not part of the code change.
