@@ -183,16 +183,16 @@ Design decisions & rationale:
 - Modify: `feed_proxy/logic.py`
 - Modify: `tests/test_logic.py`
 
-- [ ] compute `sid` / `group` / `recv`; first-run guard `not await has_posts(sid, recv)`
+- [x] compute `sid` / `group` / `recv`; first-run guard `not await has_posts(sid, recv)`
       (per-source); seed via `mark_posts_as_processed(sid, group, recv, all_identities)`
-- [ ] novelty filter uses `any_processed(group, recv, post_identities(post, source.dedup_key))`
-- [ ] final mark uses `mark_posts_as_processed(sid, group, recv, to_mark)`
-- [ ] update `StubStorage` (`test_unhandled_processor_exception_aborts_before_marking`) to the new
+- [x] novelty filter uses `any_processed(group, recv, post_identities(post, source.dedup_key))`
+- [x] final mark uses `mark_posts_as_processed(sid, group, recv, to_mark)`
+- [x] update `StubStorage` (`test_unhandled_processor_exception_aborts_before_marking`) to the new
       method signatures (`has_posts(source_id, receiver_type)`,
       `any_processed(dedup_group, receiver_type, post_ids)`,
       `mark_posts_as_processed(source_id, dedup_group, receiver_type, post_ids)`); remove its
       `is_post_processed`
-- [ ] migrate all existing `tests/test_logic.py` seeding/assertions to the new signatures —
+- [x] migrate all existing `tests/test_logic.py` seeding/assertions to the new signatures —
       replace `is_post_processed` assertions with `any_processed`. **Multi-source group tests must
       seed EACH participating source's owner scope** separately
       (`mark_posts_as_processed(sid_a, group, recv, ["seed"])` **and**
@@ -202,17 +202,17 @@ Design decisions & rationale:
       proving the second source took the **dedup** path, not first-run: assert
       `has_posts(sid_b, recv)` is `True` before the dedup assertion (and/or that a genuinely-new,
       non-duplicate post from source_b *does* produce a batch)
-- [ ] write **regression** test: two sources sharing one `dedup_group`, both on their first run
+- [x] write **regression** test: two sources sharing one `dedup_group`, both on their first run
       (empty storage) → **both** return `[]` (no batches, no burst); assert all identities marked
       under the group scope
-- [ ] write test: after both group sources are past first-run (each owner scope seeded), a
+- [x] write test: after both group sources are past first-run (each owner scope seeded), a
       cross-source duplicate (same title, different guid) from the second source is filtered (`[]`),
       with the positive guard above proving it was dedup and not first-run
-- [ ] write test: guid edit-resend protection preserved (same guid, changed title → `[]`)
-- [ ] write test: distinct `dedup_group` values are not cross-filtered
-- [ ] write test: ungrouped source (defaults) — first run seeds silently, then dedups by guid
+- [x] write test: guid edit-resend protection preserved (same guid, changed title → `[]`)
+- [x] write test: distinct `dedup_group` values are not cross-filtered
+- [x] write test: ungrouped source (defaults) — first run seeds silently, then dedups by guid
       exactly as before
-- [ ] run full suite - must pass before next task
+- [x] run full suite - must pass before next task
 
 ### Task 3: Verify acceptance criteria
 - [ ] verify Overview requirements: no first-cycle burst (per-source first-run); cross-source

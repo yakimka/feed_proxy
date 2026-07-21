@@ -93,23 +93,24 @@ async def parse_message_batches_from_posts(
     posts: list[Post], source: Source, stream: Stream, post_storage: PostStorage
 ) -> list[list[Message]]:
     message_batches: list[list[Message]] = []
+    sid = source.id
     group = source.dedup_group or source.id
-    key = (group, stream.receiver_type)
-    if not await post_storage.has_posts(key):
-        logger.info("First run for %s, skipping all posts", key)
+    recv = stream.receiver_type
+    if not await post_storage.has_posts(sid, recv):
+        logger.info("First run for %s, skipping all posts", (sid, recv))
         all_identities = [
             identity
             for post in posts
             for identity in post_identities(post, source.dedup_key)
         ]
-        await post_storage.mark_posts_as_processed(key, all_identities)
+        await post_storage.mark_posts_as_processed(sid, group, recv, all_identities)
         return message_batches
 
     new_posts = [
         post
         for post in reversed(posts)
         if not await post_storage.any_processed(
-            key, post_identities(post, source.dedup_key)
+            group, recv, post_identities(post, source.dedup_key)
         )
     ]
     new_posts = await apply_pre_send_processors(stream.pre_send_processors, new_posts)
@@ -125,12 +126,12 @@ async def parse_message_batches_from_posts(
                 template_kwargs=post.template_kwargs(),
             )
         )
-        logger.info("New post %s for %s", post, key)
+        logger.info("New post %s for %s", post, (group, recv))
         to_mark.extend(post_identities(post, source.dedup_key))
-    await post_storage.mark_posts_as_processed(key, to_mark)
+    await post_storage.mark_posts_as_processed(sid, group, recv, to_mark)
 
     if not messages:
-        logger.info("No new posts for %s", key)
+        logger.info("No new posts for %s", (group, recv))
         return message_batches
 
     if stream.squash:
