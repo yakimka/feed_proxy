@@ -196,11 +196,10 @@ With this configuration, an article posted with the same title on both `mi-gijon
 is delivered only once, while a title edit on an already-sent article (same guid) still doesn't
 trigger a resend.
 
-Note: attaching `dedup_group` to sources that already have posts in storage causes a one-time
-initial burst — the first source processed in a newly grouped cycle marks its posts as processed
-without sending (first-run guard), but every subsequent source in the group then sends its
-non-overlapping posts immediately, since the group's storage key is no longer empty. This is a
-one-time, accepted side effect of attaching the group, not an ongoing behavior.
+Note: first-run detection is scoped per-source, not per-group, so attaching `dedup_group` to
+sources that already have posts in storage does **not** cause an initial burst — each source still
+self-seeds silently on its own first cycle, independent of whether other sources in the group have
+already run.
 
 ## License
 

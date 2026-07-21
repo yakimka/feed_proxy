@@ -230,10 +230,11 @@ Design decisions & rationale:
 - [x] verify no unintended change to the metrics key in `cli/run.py`
 
 ### Task 4: [Final] Update documentation
-- [ ] update `README.md` if the `dedup_group`/`dedup_key` / `x-dedup` section references the old
+- [x] update `README.md` if the `dedup_group`/`dedup_key` / `x-dedup` section references the old
       burst caveat — replace the "initial burst" note with the new per-source first-run behavior
-- [ ] update `CLAUDE.md` only if a new pattern worth recording emerged
-- [ ] move this plan to `docs/plans/completed/`
+- [x] update `CLAUDE.md` only if a new pattern worth recording emerged (no project-level CLAUDE.md
+      exists in this repo; no new pattern warranted one)
+- [x] move this plan to `docs/plans/completed/`
 
 ## Post-Completion
 *Informational — manual/external actions, no checkboxes.*
