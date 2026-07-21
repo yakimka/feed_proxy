@@ -150,17 +150,17 @@ Design decisions & rationale:
 - Modify: `feed_proxy/logic.py`
 - Modify: `tests/test_logic.py`
 
-- [ ] compute `group = source.dedup_group or source.id`; `key = (group, stream.receiver_type)`
-- [ ] first-run branch: mark flattened identities of all posts (via `post_identities`)
-- [ ] novelty filter: use `await post_storage.any_processed(key, post_identities(post, source.dedup_key))`
-- [ ] `to_mark`: collect all identities of each sent post (flatten)
-- [ ] update `StubStorage` in `tests/test_logic.py` (`test_unhandled_processor_exception_aborts_before_marking`, ~line 149) to implement `any_processed` — the novelty filter now calls it *before* the pre-send processor runs, so without this the existing test raises `AttributeError` instead of `RuntimeError`
-- [ ] write test (a): two sources sharing `dedup_group`, same title / different guid, non-first-run → second is skipped (no batch)
-- [ ] write test (b): same guid + changed title → skipped (edit-resend protection preserved)
-- [ ] write test (c): different `dedup_group` values → no cross-filtering
-- [ ] write test (d): first run of a group → nothing sent, but all identities marked (assert via `any_processed`)
-- [ ] write test: backward-compat — source with defaults still dedups by guid exactly as before (existing tests still green)
-- [ ] run tests - must pass before next task
+- [x] compute `group = source.dedup_group or source.id`; `key = (group, stream.receiver_type)`
+- [x] first-run branch: mark flattened identities of all posts (via `post_identities`)
+- [x] novelty filter: use `await post_storage.any_processed(key, post_identities(post, source.dedup_key))`
+- [x] `to_mark`: collect all identities of each sent post (flatten)
+- [x] update `StubStorage` in `tests/test_logic.py` (`test_unhandled_processor_exception_aborts_before_marking`, ~line 149) to implement `any_processed` — the novelty filter now calls it *before* the pre-send processor runs, so without this the existing test raises `AttributeError` instead of `RuntimeError`
+- [x] write test (a): two sources sharing `dedup_group`, same title / different guid, non-first-run → second is skipped (no batch)
+- [x] write test (b): same guid + changed title → skipped (edit-resend protection preserved)
+- [x] write test (c): different `dedup_group` values → no cross-filtering
+- [x] write test (d): first run of a group → nothing sent, but all identities marked (assert via `any_processed`)
+- [x] write test: backward-compat — source with defaults still dedups by guid exactly as before (existing tests still green)
+- [x] run tests - must pass before next task
 
 ### Task 6: Verify acceptance criteria
 - [ ] verify Overview requirements: cross-source dedup by title works; guid still protects against edit re-send; ungrouped sources unchanged

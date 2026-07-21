@@ -160,6 +160,9 @@ async def test_unhandled_processor_exception_aborts_before_marking(
         async def is_post_processed(self, key, post_id) -> bool:  # noqa: U100
             return post_id in self._processed
 
+        async def any_processed(self, key, post_ids) -> bool:  # noqa: U100
+            return bool(self._processed & set(post_ids))
+
         async def mark_posts_as_processed(self, key, post_ids) -> None:  # noqa: U100
             self.mark_calls.append(post_ids)
             self._processed.update(post_ids)
@@ -237,3 +240,108 @@ async def test_cross_stream_isolation(mother, make_post, handler_registry):
 
     assert batches_by_stream["stream_a"][0][0].template_kwargs["marker"] == "a"
     assert "marker" not in batches_by_stream["stream_b"][0][0].template_kwargs
+
+
+async def test_shared_dedup_group_cross_source_title_dedup(mother, make_post):
+    source_a = mother.source(
+        id="site-a", dedup_group="asturias-news", dedup_key="title"
+    )
+    source_b = mother.source(
+        id="site-b", dedup_group="asturias-news", dedup_key="title"
+    )
+    stream = mother.stream()
+    storage = MemoryPostStorage()
+    key = ("asturias-news", stream.receiver_type)
+    await storage.mark_posts_as_processed(key, ["seed"])
+    post_a = make_post(post_id="guid-a", title="Same Article")
+    post_b = make_post(post_id="guid-b", title="Same Article")
+
+    batches_a = await logic.parse_message_batches_from_posts(
+        [post_a], source_a, stream, storage
+    )
+    batches_b = await logic.parse_message_batches_from_posts(
+        [post_b], source_b, stream, storage
+    )
+
+    assert len(batches_a) == 1
+    assert batches_b == []
+
+
+async def test_shared_dedup_group_guid_edit_resend_protection(mother, make_post):
+    source_a = mother.source(
+        id="site-a", dedup_group="asturias-news", dedup_key="title"
+    )
+    source_b = mother.source(
+        id="site-b", dedup_group="asturias-news", dedup_key="title"
+    )
+    stream = mother.stream()
+    storage = MemoryPostStorage()
+    key = ("asturias-news", stream.receiver_type)
+    await storage.mark_posts_as_processed(key, ["seed"])
+    post_a = make_post(post_id="guid-a", title="Original Title")
+
+    await logic.parse_message_batches_from_posts([post_a], source_a, stream, storage)
+    edited_post = make_post(post_id="guid-a", title="Edited Title")
+    batches_b = await logic.parse_message_batches_from_posts(
+        [edited_post], source_b, stream, storage
+    )
+
+    assert batches_b == []
+
+
+async def test_distinct_dedup_groups_are_not_cross_filtered(mother, make_post):
+    source_a = mother.source(id="site-a", dedup_group="group-a", dedup_key="title")
+    source_b = mother.source(id="site-b", dedup_group="group-b", dedup_key="title")
+    stream = mother.stream()
+    storage = MemoryPostStorage()
+    await storage.mark_posts_as_processed(("group-a", stream.receiver_type), ["seed"])
+    await storage.mark_posts_as_processed(("group-b", stream.receiver_type), ["seed"])
+    post_a = make_post(post_id="guid-a", title="Same Article")
+    post_b = make_post(post_id="guid-b", title="Same Article")
+
+    batches_a = await logic.parse_message_batches_from_posts(
+        [post_a], source_a, stream, storage
+    )
+    batches_b = await logic.parse_message_batches_from_posts(
+        [post_b], source_b, stream, storage
+    )
+
+    assert len(batches_a) == 1
+    assert len(batches_b) == 1
+
+
+async def test_first_run_of_group_marks_all_identities_without_sending(
+    mother, make_post
+):
+    source = mother.source(id="site-a", dedup_group="asturias-news", dedup_key="title")
+    stream = mother.stream()
+    storage = MemoryPostStorage()
+    key = ("asturias-news", stream.receiver_type)
+    post = make_post(post_id="guid-a", title="Some Article")
+
+    batches = await logic.parse_message_batches_from_posts(
+        [post], source, stream, storage
+    )
+
+    assert batches == []
+    assert await storage.any_processed(key, ["guid-a"])
+    assert await storage.any_processed(key, ["title:some article"])
+
+
+async def test_backward_compat_default_source_dedups_by_guid_only(mother, make_post):
+    source = mother.source()
+    stream = mother.stream()
+    storage = MemoryPostStorage()
+    key = (source.id, stream.receiver_type)
+    await storage.mark_posts_as_processed(key, ["seed"])
+    processed_post = make_post(post_id="processed", title="Same Title")
+    new_post_same_title = make_post(post_id="new", title="Same Title")
+    await storage.mark_posts_as_processed(key, [processed_post.post_id])
+
+    batches = await logic.parse_message_batches_from_posts(
+        [processed_post, new_post_same_title], source, stream, storage
+    )
+
+    assert len(batches) == 1
+    assert len(batches[0]) == 1
+    assert batches[0][0].post_id == "new"
