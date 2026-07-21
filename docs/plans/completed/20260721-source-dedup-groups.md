@@ -170,9 +170,9 @@ Design decisions & rationale:
 - [x] verify no unintended change to metrics key in `cli/run.py`
 
 ### Task 7: [Final] Update documentation
-- [ ] document `dedup_group` / `dedup_key` in `README.md` with the `x-dedup` anchor example (below)
-- [ ] update `CLAUDE.md` only if a new pattern worth recording emerged
-- [ ] move this plan to `docs/plans/completed/`
+- [x] document `dedup_group` / `dedup_key` in `README.md` with the `x-dedup` anchor example (below)
+- [x] update `CLAUDE.md` only if a new pattern worth recording emerged (no project `CLAUDE.md` exists; no new pattern warranted creating one)
+- [x] move this plan to `docs/plans/completed/`
 
 ## Post-Completion
 *Informational — manual/external actions, no checkboxes.*

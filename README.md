@@ -153,6 +153,55 @@ multiple processors without duplicating the text. The config loader ignores unkn
 Chaining multiple `llm_prompt` processors lets you combine steps — e.g. summarize into
 `extras.summary`, then a second processor reads `source_field: summary` to translate it.
 
+## Source dedup groups
+
+By default, deduplication is scoped to a single source: a post is considered new if its `post_id`
+(guid) hasn't been seen before for that `(source, receiver)` pair. This works well for a single
+feed, but breaks down when the same article is published by multiple sites with different guids
+(e.g. a news item mirrored by `migijon.com` and `mioviedo.com`) — each source has its own guid, so
+the duplicate is never filtered.
+
+A source can opt into a shared **dedup group** with a configurable **uniqueness key** to fix this:
+
+- `dedup_group` — sources sharing the same `dedup_group` value share one "already sent" namespace
+  per receiver, instead of each having its own. Sources without `dedup_group` are unaffected
+  (they keep using their own `source.id` as before).
+- `dedup_key` — name of a post field (e.g. `title`) used, **in addition to** the guid, to detect
+  cross-source duplicates. Defaults to `"post_id"`, which means "guid only" (current behavior).
+  When set to another field, a post is skipped if either its guid *or* its normalized field value
+  was already seen anywhere in the group. The field value is normalized by trimming, collapsing
+  whitespace, and case-folding before comparison.
+
+Both fields are optional and default to values that reproduce the original per-source behavior, so
+existing configurations don't need any changes.
+
+```yaml
+x-dedup:
+  asturias: &asturias-dedup
+    dedup_group: "asturias-news"
+    dedup_key: "title"
+
+sources:
+  mi-gijon:
+    <<: [*rss-feed, *asturias-dedup]
+    fetcher_options: { url: "https://migijon.com/feed/" }
+    # ...streams...
+  mi-oviedo:
+    <<: [*rss-feed, *asturias-dedup]
+    fetcher_options: { url: "https://mioviedo.com/feed/" }
+    # ...streams...
+```
+
+With this configuration, an article posted with the same title on both `mi-gijon` and `mi-oviedo`
+is delivered only once, while a title edit on an already-sent article (same guid) still doesn't
+trigger a resend.
+
+Note: attaching `dedup_group` to sources that already have posts in storage causes a one-time
+initial burst — the first source processed in a newly grouped cycle marks its posts as processed
+without sending (first-run guard), but every subsequent source in the group then sends its
+non-overlapping posts immediately, since the group's storage key is no longer empty. This is a
+one-time, accepted side effect of attaching the group, not an ongoing behavior.
+
 ## License
 
 [MIT](https://github.com/yakimka/feed_proxy/blob/master/LICENSE)
