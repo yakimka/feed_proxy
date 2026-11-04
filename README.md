@@ -104,8 +104,32 @@ Add a `pre_send_processors` list to a stream. Each processor writes its result i
 `extras`, which are available in `message_template` alongside the post's base fields.
 
 The MVP ships one processor, `llm_prompt`, which runs an arbitrary instruction over a field
-through an LLM (currently Google Gemini) — translation, summarization, or anything else you can
-phrase as a prompt. It requires the `GEMINI_API_KEY` environment variable to be set.
+through an LLM — translation, summarization, or anything else you can phrase as a prompt.
+
+It talks to any OpenAI-compatible `/chat/completions` endpoint (Gemini, Mistral, OpenRouter,
+Groq, Together, a local Ollama, ...), configured with environment variables:
+
+- `LLM_BASE_URL` — API base URL, e.g. `https://api.mistral.ai/v1`
+- `LLM_API_KEY` — API key sent as a bearer token
+- `LLM_MODEL` — model name, e.g. `mistral-large-4`
+- `LLM_TEMPERATURE` — optional sampling temperature (default `0`); some models, e.g.
+  Mistral's reasoning `mistral-large-4`, reject `0`, use `0.3` for them
+- `LLM_MAX_CONCURRENCY` — optional, max parallel requests (default `5`); lower it for
+  providers with tight per-second limits
+- `LLM_TIMEOUT` — optional, seconds to wait for one response (default `90`)
+
+Failed calls are retried up to 5 times: on status 429/500/502/503/504, network errors,
+timeouts and empty answers. The delay honours the `Retry-After` header, otherwise it grows
+5s, 10s, 20s, 40s (with jitter, at most 60s), and a rate limit pauses the other requests too.
+Retrying stops after 3 minutes in total. Other client errors (400, 401, 402, 403, ...) aren't
+retried.
+
+If the call still fails, the unprocessed source text is written to `target_field` (or
+`on_error_value` if set), so the post is sent untranslated.
+
+Gemini's compatible endpoint is `https://generativelanguage.googleapis.com/v1beta/openai`.
+`<think>...</think>` blocks and `thinking` chunks emitted by reasoning models are stripped from
+the answer.
 
 ```yaml
 x_prompts:
@@ -147,8 +171,8 @@ multiple processors without duplicating the text. The config loader ignores unkn
 - `prompt` — instruction for the model; must contain the `{source}` placeholder, which is replaced
   with the source text (plain substring replacement, so other `{`/`}` in the prompt or in the
   source text are left untouched)
-- `on_error_value` — value written to `target_field` if the call fails; defaults to the
-  unprocessed source text (`None`)
+- `on_error_value` — value written to `target_field` if the call fails after all retries;
+  defaults to the unprocessed source text (`None`)
 
 Chaining multiple `llm_prompt` processors lets you combine steps — e.g. summarize into
 `extras.summary`, then a second processor reads `source_field: summary` to translate it.

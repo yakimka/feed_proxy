@@ -3,10 +3,14 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import logging
+import math
 import os
-from typing import TYPE_CHECKING
+import random
+import re
+import time
+from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
-from google import genai
+import httpx
 
 from feed_proxy.handlers import HandlerOptions, HandlerType, register_handler
 
@@ -15,11 +19,32 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_MODEL = "gemini-3.5-flash"
+_Number = TypeVar("_Number", int, float)
 
-_MAX_CONCURRENCY = 5
+_DEFAULT_MAX_CONCURRENCY = 5
 
-_client: genai.Client | None = None
+_DEFAULT_TEMPERATURE = 0.0
+
+# Reasoning models can take well over 30 seconds for a long article.
+_DEFAULT_TIMEOUT_SECONDS = 90.0
+
+_RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
+
+# Statuses meaning the provider as a whole is overloaded, not just this one request.
+_BUSY_STATUSES = frozenset({429, 503})
+
+_MAX_ATTEMPTS = 5
+
+_BASE_RETRY_DELAY_SECONDS = 5.0
+
+_MAX_RETRY_DELAY_SECONDS = 60.0
+
+# The whole pipeline is sequential, so a stuck call must not hold it up for long.
+_MAX_TOTAL_SECONDS = 180.0
+
+_THINK_BLOCK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
+
+_client: httpx.AsyncClient | None = None
 
 
 @dataclasses.dataclass
@@ -45,12 +70,81 @@ class LlmPromptOptions(HandlerOptions):
     on_error_value: str | None = None
 
 
-def _get_client() -> genai.Client:
+class _Retryable(Exception):
+    def __init__(
+        self,
+        cause: Exception,
+        *,
+        retry_after: float | None = None,
+        provider_busy: bool = False,
+    ) -> None:
+        super().__init__(str(cause))
+        self.cause = cause
+        self.retry_after = retry_after
+        self.provider_busy = provider_busy
+
+
+class _Cooldown:
+    """Pause shared by all requests once the provider asked us to slow down."""
+
+    def __init__(self) -> None:
+        self._until = 0.0
+
+    def block(self, seconds: float) -> None:
+        self._until = max(self._until, _now() + seconds)
+
+    async def wait(self) -> None:
+        remaining = self._until - _now()
+        if remaining > 0:
+            await _sleep(remaining)
+
+
+_cooldown = _Cooldown()
+
+
+def _now() -> float:
+    return time.monotonic()
+
+
+async def _sleep(seconds: float) -> None:
+    await asyncio.sleep(seconds)
+
+
+def _jitter() -> float:
+    return random.uniform(0.75, 1.25)  # noqa: S311
+
+
+def _env_number(
+    name: str,
+    default: _Number,
+    cast: Callable[[str], _Number],
+    *,
+    minimum: _Number,
+) -> _Number:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        value = cast(raw)
+    except ValueError:
+        logger.warning("Invalid %s=%r, using default %s", name, raw, default)
+        return default
+    if not math.isfinite(value) or value < minimum:
+        logger.warning("Invalid %s=%r, using default %s", name, raw, default)
+        return default
+    return value
+
+
+def _get_client() -> httpx.AsyncClient:
     global _client
     if _client is None:
-        _client = genai.Client(
-            api_key=os.environ["GEMINI_API_KEY"],
-            http_options=genai.types.HttpOptions(timeout=30_000),
+        timeout = _env_number(
+            "LLM_TIMEOUT", _DEFAULT_TIMEOUT_SECONDS, float, minimum=1.0
+        )
+        _client = httpx.AsyncClient(
+            base_url=os.environ["LLM_BASE_URL"].rstrip("/") + "/",
+            headers={"Authorization": f"Bearer {os.environ['LLM_API_KEY']}"},
+            timeout=timeout,
         )
     return _client
 
@@ -62,15 +156,103 @@ def _read_field(post: Post, name: str) -> str:
     return getattr(post, name, "") or ""
 
 
+def _status_error(response: httpx.Response) -> httpx.HTTPStatusError:
+    return httpx.HTTPStatusError(
+        f"LLM responded with {response.status_code}: {response.text[:300]}",
+        request=response.request,
+        response=response,
+    )
+
+
+def _answer_text(content: Any) -> str:
+    """Plain string, or a list of chunks as returned by reasoning models."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "".join(
+            chunk.get("text", "")
+            for chunk in content
+            if isinstance(chunk, dict) and chunk.get("type") == "text"
+        )
+    return ""
+
+
+def _retry_after(response: httpx.Response) -> float | None:
+    try:
+        return max(float(response.headers["Retry-After"]), 0.0)
+    except (KeyError, ValueError):
+        return None
+
+
+def _retry_delay(exc: _Retryable, attempt: int) -> float:
+    if exc.retry_after is not None:
+        # never earlier than the provider asked, but spread the requests that
+        # were waiting for the same moment
+        delay = exc.retry_after * max(_jitter(), 1.0)
+    else:
+        delay = _BASE_RETRY_DELAY_SECONDS * 2 ** (attempt - 1) * _jitter()
+    return min(delay, _MAX_RETRY_DELAY_SECONDS)
+
+
+async def _attempt(client: httpx.AsyncClient, payload: dict[str, Any]) -> str:
+    try:
+        response = await client.post("chat/completions", json=payload)
+    except httpx.RequestError as exc:  # timeouts, connection resets, bad encoding
+        raise _Retryable(exc) from exc
+
+    if response.status_code in _RETRY_STATUSES:
+        raise _Retryable(
+            _status_error(response),
+            retry_after=_retry_after(response),
+            provider_busy=response.status_code in _BUSY_STATUSES,
+        )
+    if response.is_error:
+        raise _status_error(response)
+
+    try:
+        content = response.json()["choices"][0]["message"]["content"]
+    except (ValueError, KeyError, IndexError, TypeError) as exc:
+        raise _Retryable(
+            ValueError(f"Unexpected response body: {response.text[:300]}")
+        ) from exc
+    answer = _answer_text(content)
+    text = _THINK_BLOCK_RE.sub("", answer).strip()
+    if not text:
+        raise _Retryable(ValueError("Empty response from model"))
+    return text
+
+
 async def _run_prompt(prompt: str, source: str) -> str:
     client = _get_client()
-    response = await client.aio.models.generate_content(
-        model=_MODEL,
-        contents=prompt.replace("{source}", source),
-    )
-    if not response.text:
-        raise ValueError("Empty response from model")
-    return response.text
+    payload = {
+        "model": os.environ["LLM_MODEL"],
+        "messages": [{"role": "user", "content": prompt.replace("{source}", source)}],
+        "temperature": _env_number(
+            "LLM_TEMPERATURE", _DEFAULT_TEMPERATURE, float, minimum=0.0
+        ),
+    }
+    started = _now()
+    for attempt in range(1, _MAX_ATTEMPTS + 1):
+        await _cooldown.wait()
+        try:
+            return await _attempt(client, payload)
+        except _Retryable as exc:
+            delay = _retry_delay(exc, attempt)
+            out_of_time = _now() - started + delay > _MAX_TOTAL_SECONDS
+            if attempt == _MAX_ATTEMPTS or out_of_time:
+                raise exc.cause from None
+            if exc.provider_busy:
+                _cooldown.block(delay)
+            logger.warning(
+                "LLM call failed (%s: %s), retrying in %.1fs (attempt %s/%s)",
+                type(exc.cause).__name__,
+                exc,
+                delay,
+                attempt,
+                _MAX_ATTEMPTS,
+            )
+            await _sleep(delay)
+    raise AssertionError("unreachable")  # pragma: no cover
 
 
 async def _process_post(
@@ -106,6 +288,8 @@ async def _process_post(
     options=LlmPromptOptions,
 )
 async def llm_prompt(posts: list[Post], *, options: LlmPromptOptions) -> list[Post]:
-    semaphore = asyncio.Semaphore(_MAX_CONCURRENCY)
+    semaphore = asyncio.Semaphore(
+        _env_number("LLM_MAX_CONCURRENCY", _DEFAULT_MAX_CONCURRENCY, int, minimum=1)
+    )
     await asyncio.gather(*(_process_post(post, options, semaphore) for post in posts))
     return posts
