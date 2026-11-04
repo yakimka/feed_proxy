@@ -13,10 +13,13 @@ from picodi.helpers import enter
 from feed_proxy.messages_outbox import MessagesOutbox
 from feed_proxy.observability import Metrics, NullMetrics, PrometheusMetrics
 from feed_proxy.storage import (
+    LlmCacheStorage,
+    MemoryLlmCacheStorage,
     MemoryMessagesOutboxStorage,
     MemoryPostStorage,
     MessagesOutboxStorage,
     PostStorage,
+    SqliteLlmCacheStorage,
     SqliteMessagesOutboxStorage,
     SqlitePostStorage,
     create_sqlite_conn,
@@ -109,6 +112,35 @@ def get_outbox_storage(
 
     with enter(dep) as outbox_storage:
         return outbox_storage
+
+
+@dependency(scope_class=SingletonScope)
+def get_memory_llm_cache_storage() -> MemoryLlmCacheStorage:
+    return MemoryLlmCacheStorage()
+
+
+@inject
+def get_sqlite_llm_cache_storage(
+    conn: sqlite3.Connection = Provide(get_sqlite_conn),
+) -> SqliteLlmCacheStorage:
+    return SqliteLlmCacheStorage(conn)
+
+
+@inject
+def get_llm_cache_storage(
+    settings: AppSettings = Provide(get_app_settings),
+) -> LlmCacheStorage:
+    if settings.llm_cache_storage == "sqlite":
+        dep: Callable = get_sqlite_llm_cache_storage
+    elif settings.llm_cache_storage == "memory":
+        dep = get_memory_llm_cache_storage
+    else:
+        raise ValueError(
+            f"Unknown llm cache storage type: {settings.llm_cache_storage}"
+        )
+
+    with enter(dep) as llm_cache_storage:
+        return llm_cache_storage
 
 
 @inject

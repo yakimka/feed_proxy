@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import hashlib
+import json
 import logging
 import math
 import os
@@ -13,10 +15,12 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 import httpx
 
+from feed_proxy.deps import get_llm_cache_storage
 from feed_proxy.handlers import HandlerOptions, HandlerType, register_handler
 
 if TYPE_CHECKING:
     from feed_proxy.entities import Post
+    from feed_proxy.storage import LlmCacheStorage
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +29,15 @@ _Number = TypeVar("_Number", int, float)
 _DEFAULT_MAX_CONCURRENCY = 5
 
 _DEFAULT_TEMPERATURE = 0.0
+
+_DEFAULT_CACHE_TTL_DAYS = 7.0
+
+_SECONDS_IN_DAY = 24 * 60 * 60
+
+# How often expired cache entries are deleted while the process is running.
+_CACHE_PURGE_INTERVAL_SECONDS = 60 * 60
+
+_MIN_CACHE_TTL_DAYS = _CACHE_PURGE_INTERVAL_SECONDS / _SECONDS_IN_DAY
 
 # Reasoning models can take well over 30 seconds for a long article.
 _DEFAULT_TIMEOUT_SECONDS = 90.0
@@ -46,6 +59,8 @@ _MAX_TOTAL_SECONDS = 180.0
 _THINK_BLOCK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
 
 _client: httpx.AsyncClient | None = None
+
+_last_cache_purge = 0.0
 
 _rng = random.SystemRandom()
 
@@ -152,6 +167,45 @@ def _get_client() -> httpx.AsyncClient:
     return _client
 
 
+def _wall_time() -> float:
+    return time.time()
+
+
+def _make_cache_key(base_url: str, model: str, temperature: float, content: str) -> str:
+    return hashlib.sha256(
+        json.dumps([base_url, model, temperature, content]).encode()
+    ).hexdigest()
+
+
+async def _purge_expired_cache(cache: LlmCacheStorage, ttl_seconds: float) -> None:
+    global _last_cache_purge
+    now = _wall_time()
+    if now - _last_cache_purge < _CACHE_PURGE_INTERVAL_SECONDS:
+        return
+    _last_cache_purge = now
+    try:
+        await cache.delete_older_than(now - ttl_seconds)
+    except Exception:  # noqa: PIE786
+        logger.exception("Failed to purge the LLM cache")
+
+
+async def _read_cache(
+    cache: LlmCacheStorage, key: str, ttl_seconds: float
+) -> str | None:
+    try:
+        return await cache.get(key, newer_than=_wall_time() - ttl_seconds)
+    except Exception:  # noqa: PIE786
+        logger.exception("Failed to read from the LLM cache")
+        return None
+
+
+async def _write_cache(cache: LlmCacheStorage, key: str, value: str) -> None:
+    try:
+        await cache.set(key, value, created_at=_wall_time())
+    except Exception:  # noqa: PIE786
+        logger.exception("Failed to write to the LLM cache")
+
+
 def _read_field(post: Post, name: str) -> str:
     extras = getattr(post, "extras", {})
     if name in extras:
@@ -225,15 +279,7 @@ async def _attempt(client: httpx.AsyncClient, payload: dict[str, Any]) -> str:
     return text
 
 
-async def _run_prompt(prompt: str, source: str) -> str:
-    client = _get_client()
-    payload = {
-        "model": os.environ["LLM_MODEL"],
-        "messages": [{"role": "user", "content": prompt.replace("{source}", source)}],
-        "temperature": _env_number(
-            "LLM_TEMPERATURE", _DEFAULT_TEMPERATURE, float, minimum=0.0
-        ),
-    }
+async def _request_answer(client: httpx.AsyncClient, payload: dict[str, Any]) -> str:
     started = _now()
     for attempt in range(1, _MAX_ATTEMPTS + 1):
         await _cooldown.wait()
@@ -256,6 +302,38 @@ async def _run_prompt(prompt: str, source: str) -> str:
             )
             await _sleep(delay)
     raise AssertionError("unreachable")  # pragma: no cover
+
+
+async def _run_prompt(prompt: str, source: str) -> str:
+    client = _get_client()
+    model = os.environ["LLM_MODEL"]
+    temperature = _env_number(
+        "LLM_TEMPERATURE", _DEFAULT_TEMPERATURE, float, minimum=0.0
+    )
+    content = prompt.replace("{source}", source)
+    cache = get_llm_cache_storage()
+    key = _make_cache_key(str(client.base_url), model, temperature, content)
+    ttl_seconds = _SECONDS_IN_DAY * _env_number(
+        "LLM_CACHE_TTL_DAYS",
+        _DEFAULT_CACHE_TTL_DAYS,
+        float,
+        minimum=_MIN_CACHE_TTL_DAYS,
+    )
+    await _purge_expired_cache(cache, ttl_seconds)
+    cached = await _read_cache(cache, key, ttl_seconds)
+    if cached is not None:
+        logger.info("Using the cached LLM answer")
+        return cached
+    text = await _request_answer(
+        client,
+        {
+            "model": model,
+            "messages": [{"role": "user", "content": content}],
+            "temperature": temperature,
+        },
+    )
+    await _write_cache(cache, key, text)
+    return text
 
 
 async def _process_post(

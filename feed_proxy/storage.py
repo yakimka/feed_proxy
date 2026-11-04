@@ -240,6 +240,64 @@ class SqliteMessagesOutboxStorage:
         self._conn.commit()
 
 
+class LlmCacheStorage(Protocol):
+    async def get(self, key: str, *, newer_than: float) -> str | None:
+        pass
+
+    async def set(self, key: str, value: str, *, created_at: float) -> None:
+        pass
+
+    async def delete_older_than(self, timestamp: float) -> None:
+        pass
+
+
+class MemoryLlmCacheStorage:
+    def __init__(self) -> None:
+        self._entries: dict[str, tuple[str, float]] = {}
+
+    async def get(self, key: str, *, newer_than: float) -> str | None:
+        entry = self._entries.get(key)
+        if entry is None or entry[1] < newer_than:
+            return None
+        return entry[0]
+
+    async def set(self, key: str, value: str, *, created_at: float) -> None:
+        self._entries[key] = (value, created_at)
+
+    async def delete_older_than(self, timestamp: float) -> None:
+        self._entries = {
+            key: entry for key, entry in self._entries.items() if entry[1] >= timestamp
+        }
+
+
+class SqliteLlmCacheStorage:
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self._conn = conn
+
+    async def get(self, key: str, *, newer_than: float) -> str | None:
+        cursor = self._conn.cursor()
+        cursor.execute(
+            "SELECT value FROM llm_cache WHERE key = ? AND created_at >= ?",
+            (key, newer_than),
+        )
+        row = cursor.fetchone()
+        return row[0] if row else None
+
+    async def set(self, key: str, value: str, *, created_at: float) -> None:
+        cursor = self._conn.cursor()
+        cursor.execute(
+            "INSERT OR REPLACE INTO llm_cache (key, value, created_at) "
+            "VALUES (?, ?, ?)",
+            (key, value, created_at),
+        )
+        self._conn.commit()
+
+    async def delete_older_than(self, timestamp: float) -> None:
+        cursor = self._conn.cursor()
+        cursor.execute("DELETE FROM llm_cache WHERE created_at < ?", (timestamp,))
+        self._conn.commit()
+
+
 def create_sqlite_conn(db_path: str) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -260,6 +318,15 @@ def create_sqlite_conn(db_path: str) -> sqlite3.Connection:
             data JSON NOT NULL,
             in_progress_at INTEGER,
             created_at INTEGER DEFAULT (strftime('%s', 'now')) NOT NULL
+        );
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS llm_cache (
+            key        TEXT PRIMARY KEY,
+            value      TEXT NOT NULL,
+            created_at REAL NOT NULL
         );
         """
     )

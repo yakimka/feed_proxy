@@ -35,6 +35,7 @@ the second iteration.
      log_level: "INFO"
      post_storage: "sqlite"
      outbox_storage: "sqlite"
+     llm_cache_storage: "sqlite"
      sqlite_db: "feed_proxy.db"
      sentry_dsn: "ENV:SENTRY_DSN"
      metrics_client: "prometheus"
@@ -123,6 +124,18 @@ timeouts and empty answers. The delay honours the `Retry-After` header, otherwis
 5s, 10s, 20s, 40s (with jitter, at most 60s), and a rate limit pauses the other requests too.
 Retrying stops after 3 minutes in total. Other client errors (400, 401, 402, 403, ...) aren't
 retried.
+
+Answers can be cached, so a restart doesn't translate the same texts again. Set
+`llm_cache_storage: "sqlite"` in `settings`: the answers are kept in the `llm_cache` table of
+the same database as the posts (`sqlite_db`). The default, `"memory"`, only caches within a
+running process.
+
+- `LLM_CACHE_TTL_DAYS` — optional, how long an answer is kept (default `7`, values below an
+  hour are ignored); expired answers are deleted about once an hour
+
+The key is the API base URL, the model, the temperature and the final prompt text, so changing any of them
+makes a new request. Only successful answers are cached, never the fallback text. A cache that
+can't be read or written is only logged, translation keeps working without it.
 
 If the call still fails, the unprocessed source text is written to `target_field` (or
 `on_error_value` if set), so the post is sent untranslated.

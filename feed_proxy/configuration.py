@@ -71,6 +71,7 @@ class AppSettings:
     sentry_dsn: str | None = None
     post_storage: Literal["memory", "sqlite"] = "memory"
     outbox_storage: Literal["memory", "sqlite"] = "memory"
+    llm_cache_storage: Literal["memory", "sqlite"] = "memory"
     sqlite_db: str | None = None
     metrics_client: Literal["null", "prometheus"] = "null"
     metrics_file: str = "metrics.prom"
@@ -109,9 +110,14 @@ def read_configuration(config: dict[str, Any]) -> Configuration:
 
 def _parse_app_settings(config: dict) -> AppSettings:
     try:
-        return from_dict(AppSettings, config.get("settings", {}))
+        settings = from_dict(AppSettings, config.get("settings", {}))
     except exceptions.DaciteError as e:
         raise LoadConfigurationError(f"App settings: {e}") from None
+    if settings.llm_cache_storage == "sqlite" and not settings.sqlite_db:
+        raise LoadConfigurationError(
+            "App settings: llm_cache_storage 'sqlite' requires sqlite_db"
+        )
+    return settings
 
 
 def _parse_subhandlers(config: dict) -> list[SubHandlerConfig]:

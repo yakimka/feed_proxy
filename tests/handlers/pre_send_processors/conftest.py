@@ -53,6 +53,9 @@ class StubLlm:
         self._exception: BaseException | None = None
 
     def set_response(self, text: str | list[Any] | None) -> None:
+        """Answer every request with this text, once the queue is empty."""
+        self._status_code = 200
+        self._headers = {}
         self._body = {"choices": [{"message": {"content": text}}]}
 
     def set_status(
@@ -131,10 +134,10 @@ class StubLlm:
 
 @pytest.fixture()
 def make_stub_llm(monkeypatch):
-    def _make_stub_llm() -> StubLlm:
+    def _make_stub_llm(base_url: str = "https://llm.test/v1/") -> StubLlm:
         llm = StubLlm()
         client = httpx.AsyncClient(
-            base_url="https://llm.test/v1/",
+            base_url=base_url,
             transport=httpx.MockTransport(llm.handle),
         )
         module = "feed_proxy.handlers.pre_send_processors.llm_prompt"

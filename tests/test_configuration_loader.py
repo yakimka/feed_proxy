@@ -10,6 +10,7 @@ from feed_proxy.configuration import (
     Configuration,
     LoadConfigurationError,
     load_configuration,
+    read_configuration,
 )
 from feed_proxy.handlers import (
     HandlerOptions,
@@ -325,3 +326,32 @@ def test_load_configuration_dedup_fields_default(run_sut, minimal_sources_block)
 
     assert result.sources[0].dedup_group is None
     assert result.sources[0].dedup_key == "post_id"
+
+
+def test_sqlite_llm_cache_storage_requires_sqlite_db(minimal_sources_block):
+    config = {**minimal_sources_block, "settings": {"llm_cache_storage": "sqlite"}}
+
+    with pytest.raises(LoadConfigurationError, match="requires sqlite_db"):
+        read_configuration(config)
+
+
+def test_sqlite_llm_cache_storage_with_sqlite_db_is_accepted(minimal_sources_block):
+    settings = {"llm_cache_storage": "sqlite", "sqlite_db": "feed_proxy.db"}
+    config = {**minimal_sources_block, "settings": settings}
+
+    result = read_configuration(config)
+
+    assert result.app_settings.llm_cache_storage == "sqlite"
+
+
+def test_unknown_llm_cache_storage_is_rejected(minimal_sources_block):
+    config = {**minimal_sources_block, "settings": {"llm_cache_storage": "redis"}}
+
+    with pytest.raises(LoadConfigurationError, match="llm_cache_storage"):
+        read_configuration(config)
+
+
+def test_llm_cache_storage_is_memory_by_default(minimal_sources_block):
+    result = read_configuration(minimal_sources_block)
+
+    assert result.app_settings.llm_cache_storage == "memory"
