@@ -377,9 +377,7 @@ async def test_retry_after_header_is_respected(
     assert stub_llm.sleeps == [3.0]
 
 
-async def test_retry_after_is_capped(
-    make_feed_post, make_llm_prompt_options, stub_llm
-):
+async def test_retry_after_is_capped(make_feed_post, make_llm_prompt_options, stub_llm):
     stub_llm.queue_status(429, headers={"Retry-After": "3600"})
     stub_llm.set_response("Заголовок")
     post = make_feed_post(title="Title")
@@ -582,14 +580,34 @@ async def test_temperature_is_configurable(
     "value, expected",
     [(None, 90), ("15", 15), ("junk", 90), ("0", 90), ("nan", 90), ("inf", 90)],
 )
-def test_client_timeout_is_configurable(monkeypatch, value, expected):
+async def test_client_timeout_is_configurable(
+    make_feed_post, make_llm_prompt_options, monkeypatch, value, expected
+):
     monkeypatch.setenv("LLM_BASE_URL", "https://llm.test/v1")
     monkeypatch.setenv("LLM_API_KEY", "key")
+    monkeypatch.setenv("LLM_MODEL", "test-model")
     if value is None:
         monkeypatch.delenv("LLM_TIMEOUT", raising=False)
     else:
         monkeypatch.setenv("LLM_TIMEOUT", value)
+    created: list[dict] = []
+    real_client = httpx.AsyncClient
 
-    client = llm_prompt_module._get_client()
+    def spy_client(**kwargs):
+        created.append(kwargs)
+        return real_client(
+            transport=httpx.MockTransport(
+                lambda request: httpx.Response(
+                    200, json={"choices": [{"message": {"content": "ok"}}]}
+                )
+            ),
+            **kwargs,
+        )
 
-    assert client.timeout.read == expected
+    monkeypatch.setattr(httpx, "AsyncClient", spy_client)
+    post = make_feed_post(title="Title")
+    options = make_llm_prompt_options(source_field="title", target_field="title_ua")
+
+    await llm_prompt([post], options=options)
+
+    assert [kwargs["timeout"] for kwargs in created] == [expected]

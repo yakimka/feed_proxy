@@ -6,7 +6,6 @@ import httpx
 import pytest
 
 from feed_proxy.handlers.parsers.rss import FeedPost
-from feed_proxy.handlers.pre_send_processors import llm_prompt as llm_prompt_module
 from feed_proxy.handlers.pre_send_processors.llm_prompt import LlmPromptOptions
 
 
@@ -143,7 +142,7 @@ def make_stub_llm(monkeypatch):
         monkeypatch.setattr(f"{module}._sleep", llm.sleep)
         monkeypatch.setattr(f"{module}._now", llm.now)
         monkeypatch.setattr(f"{module}._jitter", lambda: 1.0)
-        monkeypatch.setattr(f"{module}._cooldown", llm_prompt_module._Cooldown())
+        monkeypatch.setattr(f"{module}._cooldown._until", 0.0)
         monkeypatch.setenv("LLM_MODEL", "test-model")
         return llm
 

@@ -8,7 +8,8 @@ import os
 import random
 import re
 import time
-from typing import TYPE_CHECKING, Any, Callable, TypeVar
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import httpx
 
@@ -45,6 +46,8 @@ _MAX_TOTAL_SECONDS = 180.0
 _THINK_BLOCK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
 
 _client: httpx.AsyncClient | None = None
+
+_rng = random.SystemRandom()
 
 
 @dataclasses.dataclass
@@ -111,7 +114,7 @@ async def _sleep(seconds: float) -> None:
 
 
 def _jitter() -> float:
-    return random.uniform(0.75, 1.25)  # noqa: S311
+    return _rng.uniform(0.75, 1.25)
 
 
 def _env_number(
