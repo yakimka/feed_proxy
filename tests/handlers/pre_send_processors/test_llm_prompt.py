@@ -1,15 +1,71 @@
 import json
+import sqlite3
+import time
 
 import httpx
 import pytest
 
 from feed_proxy.handlers.pre_send_processors import llm_prompt as llm_prompt_module
 from feed_proxy.handlers.pre_send_processors.llm_prompt import llm_prompt
+from feed_proxy.storage import (
+    MemoryLlmCacheStorage,
+    SqliteLlmCacheStorage,
+    create_sqlite_conn,
+)
 
 
 @pytest.fixture(autouse=True)
-def _reset_client_cache(monkeypatch):
+def _reset_module_state(monkeypatch):
     monkeypatch.setattr(llm_prompt_module, "_client", None)
+    monkeypatch.setattr(llm_prompt_module, "_last_cache_purge", 0.0)
+    # the default storage, unless a test asks for the sqlite one
+    memory_cache = MemoryLlmCacheStorage()
+    monkeypatch.setattr(
+        llm_prompt_module, "get_llm_cache_storage", lambda: memory_cache
+    )
+    monkeypatch.delenv("LLM_CACHE_TTL_DAYS", raising=False)
+
+
+@pytest.fixture()
+def db_path(tmp_path):
+    return str(tmp_path / "feed_proxy.db")
+
+
+@pytest.fixture()
+def make_cache(db_path, monkeypatch):
+    """Cache in the sqlite file; calling it again works like a restart."""
+
+    def _make_cache() -> SqliteLlmCacheStorage:
+        cache = SqliteLlmCacheStorage(create_sqlite_conn(db_path))
+        monkeypatch.setattr(llm_prompt_module, "get_llm_cache_storage", lambda: cache)
+        monkeypatch.setattr(llm_prompt_module, "_last_cache_purge", 0.0)
+        return cache
+
+    return _make_cache
+
+
+@pytest.fixture()
+def cache(make_cache):
+    return make_cache()
+
+
+def _count_cached_answers(db_path: str) -> int:
+    conn = sqlite3.connect(db_path)
+    try:
+        return conn.execute("SELECT COUNT(*) FROM llm_cache").fetchone()[0]
+    finally:
+        conn.close()
+
+
+class BrokenCache:
+    async def get(self, key, *, newer_than):  # noqa: U100
+        raise sqlite3.OperationalError("broken")
+
+    async def set(self, key, value, *, created_at):  # noqa: U100
+        raise sqlite3.OperationalError("broken")
+
+    async def delete_older_than(self, timestamp):  # noqa: U100
+        raise sqlite3.OperationalError("broken")
 
 
 async def test_happy_path(make_feed_post, make_llm_prompt_options, stub_llm):
@@ -611,3 +667,296 @@ async def test_client_timeout_is_configurable(
     await llm_prompt([post], options=options)
 
     assert [kwargs["timeout"] for kwargs in created] == [expected]
+
+
+# Cache
+
+
+async def test_answer_is_cached_between_calls(
+    make_feed_post, make_llm_prompt_options, stub_llm, cache  # noqa: U100
+):
+    stub_llm.set_response("Заголовок")
+    options = make_llm_prompt_options(source_field="title", target_field="title_ua")
+
+    first = await llm_prompt([make_feed_post(title="Title")], options=options)
+    second = await llm_prompt([make_feed_post(title="Title")], options=options)
+
+    assert first[0].extras["title_ua"] == "Заголовок"
+    assert second[0].extras["title_ua"] == "Заголовок"
+    assert len(stub_llm.requests) == 1
+
+
+async def test_cached_answer_survives_a_restart(
+    make_feed_post, make_llm_prompt_options, stub_llm, make_cache
+):
+    make_cache()
+    stub_llm.set_response("Заголовок")
+    options = make_llm_prompt_options(source_field="title", target_field="title_ua")
+    await llm_prompt([make_feed_post(title="Title")], options=options)
+    make_cache()
+    stub_llm.set_response("Другий переклад")
+
+    result = await llm_prompt([make_feed_post(title="Title")], options=options)
+
+    assert result[0].extras["title_ua"] == "Заголовок"
+    assert len(stub_llm.requests) == 1
+
+
+async def test_different_source_text_is_translated_separately(
+    make_feed_post, make_llm_prompt_options, stub_llm, cache  # noqa: U100
+):
+    stub_llm.set_response("Заголовок")
+    options = make_llm_prompt_options(source_field="title", target_field="title_ua")
+
+    await llm_prompt([make_feed_post(title="Title 1")], options=options)
+    await llm_prompt([make_feed_post(title="Title 2")], options=options)
+
+    assert len(stub_llm.requests) == 2
+
+
+async def test_different_prompt_is_run_separately(
+    make_feed_post, make_llm_prompt_options, stub_llm, cache  # noqa: U100
+):
+    stub_llm.set_response("answer")
+    post = make_feed_post(title="Title")
+
+    await llm_prompt(
+        [post], options=make_llm_prompt_options(prompt="Translate.\n{source}")
+    )
+    await llm_prompt(
+        [post], options=make_llm_prompt_options(prompt="Summarize.\n{source}")
+    )
+
+    assert len(stub_llm.requests) == 2
+
+
+async def test_different_model_is_run_separately(
+    make_feed_post,
+    make_llm_prompt_options,
+    stub_llm,
+    cache,  # noqa: U100
+    monkeypatch,
+):
+    stub_llm.set_response("Заголовок")
+    options = make_llm_prompt_options(source_field="title", target_field="title_ua")
+    await llm_prompt([make_feed_post(title="Title")], options=options)
+    monkeypatch.setenv("LLM_MODEL", "other-model")
+
+    await llm_prompt([make_feed_post(title="Title")], options=options)
+
+    assert len(stub_llm.requests) == 2
+
+
+async def test_different_temperature_is_run_separately(
+    make_feed_post,
+    make_llm_prompt_options,
+    stub_llm,
+    cache,  # noqa: U100
+    monkeypatch,
+):
+    stub_llm.set_response("Заголовок")
+    options = make_llm_prompt_options(source_field="title", target_field="title_ua")
+    await llm_prompt([make_feed_post(title="Title")], options=options)
+    monkeypatch.setenv("LLM_TEMPERATURE", "0.3")
+
+    await llm_prompt([make_feed_post(title="Title")], options=options)
+
+    assert len(stub_llm.requests) == 2
+
+
+async def test_answer_is_cached_with_non_zero_temperature(
+    make_feed_post,
+    make_llm_prompt_options,
+    stub_llm,
+    cache,  # noqa: U100
+    monkeypatch,
+):
+    monkeypatch.setenv("LLM_TEMPERATURE", "0.3")
+    stub_llm.set_response("Заголовок")
+    options = make_llm_prompt_options(source_field="title", target_field="title_ua")
+
+    await llm_prompt([make_feed_post(title="Title")], options=options)
+    await llm_prompt([make_feed_post(title="Title")], options=options)
+
+    assert len(stub_llm.requests) == 1
+
+
+async def test_failed_call_is_not_cached(
+    make_feed_post, make_llm_prompt_options, stub_llm, cache  # noqa: U100
+):
+    stub_llm.set_status(400)
+    options = make_llm_prompt_options(source_field="title", target_field="title_ua")
+    failed = await llm_prompt([make_feed_post(title="Title")], options=options)
+    stub_llm.set_response("Заголовок")
+
+    recovered = await llm_prompt([make_feed_post(title="Title")], options=options)
+
+    assert failed[0].extras["title_ua"] == "Title"
+    assert recovered[0].extras["title_ua"] == "Заголовок"
+
+
+async def test_on_error_value_is_not_cached(
+    make_feed_post, make_llm_prompt_options, stub_llm, cache  # noqa: U100
+):
+    stub_llm.set_status(400)
+    options = make_llm_prompt_options(
+        source_field="title", target_field="title_ua", on_error_value="N/A"
+    )
+    failed = await llm_prompt([make_feed_post(title="Title")], options=options)
+    stub_llm.set_response("Заголовок")
+
+    recovered = await llm_prompt([make_feed_post(title="Title")], options=options)
+
+    assert failed[0].extras["title_ua"] == "N/A"
+    assert recovered[0].extras["title_ua"] == "Заголовок"
+
+
+async def test_broken_cache_does_not_break_translation(
+    make_feed_post, make_llm_prompt_options, stub_llm, monkeypatch
+):
+    monkeypatch.setattr(
+        llm_prompt_module, "get_llm_cache_storage", lambda: BrokenCache()
+    )
+    stub_llm.set_response("Заголовок")
+    options = make_llm_prompt_options(source_field="title", target_field="title_ua")
+
+    first = await llm_prompt([make_feed_post(title="Title")], options=options)
+    second = await llm_prompt([make_feed_post(title="Title")], options=options)
+
+    assert first[0].extras["title_ua"] == "Заголовок"
+    assert second[0].extras["title_ua"] == "Заголовок"
+    assert len(stub_llm.requests) == 2
+
+
+async def test_different_api_endpoint_is_run_separately(
+    make_feed_post,
+    make_llm_prompt_options,
+    make_stub_llm,
+    cache,  # noqa: U100
+):
+    first_provider = make_stub_llm(base_url="https://first.test/v1/")
+    first_provider.set_response("Заголовок")
+    options = make_llm_prompt_options(source_field="title", target_field="title_ua")
+    await llm_prompt([make_feed_post(title="Title")], options=options)
+    second_provider = make_stub_llm(base_url="https://second.test/v1/")
+    second_provider.set_response("Заголовок")
+
+    await llm_prompt([make_feed_post(title="Title")], options=options)
+
+    assert len(first_provider.requests) == 1
+    assert len(second_provider.requests) == 1
+
+
+async def test_cache_that_cannot_be_resolved_fails_the_call_instead_of_being_ignored(
+    make_feed_post, make_llm_prompt_options, stub_llm, monkeypatch
+):
+    def broken_get_llm_cache_storage():
+        raise RuntimeError("misconfigured")
+
+    monkeypatch.setattr(
+        llm_prompt_module, "get_llm_cache_storage", broken_get_llm_cache_storage
+    )
+    stub_llm.set_response("Заголовок")
+    options = make_llm_prompt_options(
+        source_field="title", target_field="title_ua", on_error_value="N/A"
+    )
+
+    result = await llm_prompt([make_feed_post(title="Title")], options=options)
+
+    assert result[0].extras["title_ua"] == "N/A"
+    assert stub_llm.requests == []
+
+
+@pytest.mark.parametrize(
+    "ttl_days, expected_requests",
+    [
+        (None, 2),  # the default is 7 days
+        ("30", 1),
+        ("1", 2),
+    ],
+)
+async def test_cache_ttl_is_configurable(
+    make_feed_post,
+    make_llm_prompt_options,
+    stub_llm,
+    cache,  # noqa: U100
+    monkeypatch,
+    ttl_days,
+    expected_requests,
+):
+    if ttl_days is not None:
+        monkeypatch.setenv("LLM_CACHE_TTL_DAYS", ttl_days)
+    stub_llm.set_response("Заголовок")
+    options = make_llm_prompt_options(source_field="title", target_field="title_ua")
+    await llm_prompt([make_feed_post(title="Title")], options=options)
+    eight_days_later = time.time() + 8 * 24 * 60 * 60
+    monkeypatch.setattr(llm_prompt_module, "_wall_time", lambda: eight_days_later)
+    # the purge isn't due, so it's the age check on reading that decides
+    monkeypatch.setattr(llm_prompt_module, "_last_cache_purge", eight_days_later)
+
+    await llm_prompt([make_feed_post(title="Title")], options=options)
+
+    assert len(stub_llm.requests) == expected_requests
+
+
+@pytest.mark.parametrize("ttl_days", ["0", "0.01", "-1", "junk", "nan", "inf"])
+async def test_invalid_cache_ttl_falls_back_to_the_default(
+    make_feed_post,
+    make_llm_prompt_options,
+    stub_llm,
+    cache,  # noqa: U100
+    monkeypatch,
+    ttl_days,
+):
+    monkeypatch.setenv("LLM_CACHE_TTL_DAYS", ttl_days)
+    stub_llm.set_response("Заголовок")
+    options = make_llm_prompt_options(source_field="title", target_field="title_ua")
+    await llm_prompt([make_feed_post(title="Title")], options=options)
+    a_day_later = time.time() + 24 * 60 * 60
+    monkeypatch.setattr(llm_prompt_module, "_wall_time", lambda: a_day_later)
+    monkeypatch.setattr(llm_prompt_module, "_last_cache_purge", a_day_later)
+
+    await llm_prompt([make_feed_post(title="Title")], options=options)
+
+    # still inside the default 7 days
+    assert len(stub_llm.requests) == 1
+
+
+async def test_expired_answers_are_deleted(
+    make_feed_post,
+    make_llm_prompt_options,
+    stub_llm,
+    cache,  # noqa: U100
+    db_path,
+    monkeypatch,
+):
+    stub_llm.set_response("Заголовок")
+    options = make_llm_prompt_options(source_field="title", target_field="title_ua")
+    await llm_prompt([make_feed_post(title="Title 1")], options=options)
+    eight_days_later = time.time() + 8 * 24 * 60 * 60
+    monkeypatch.setattr(llm_prompt_module, "_wall_time", lambda: eight_days_later)
+
+    await llm_prompt([make_feed_post(title="Title 2")], options=options)
+
+    assert _count_cached_answers(db_path) == 1
+
+
+async def test_expired_answers_are_deleted_once_in_a_while(
+    make_feed_post,
+    make_llm_prompt_options,
+    stub_llm,
+    cache,
+    db_path,
+    monkeypatch,
+):
+    stub_llm.set_response("Заголовок")
+    options = make_llm_prompt_options(source_field="title", target_field="title_ua")
+    now = time.time()
+    monkeypatch.setattr(llm_prompt_module, "_wall_time", lambda: now)
+    await llm_prompt([make_feed_post(title="Title 1")], options=options)
+    await cache.set("old", "answer", created_at=now - 8 * 24 * 60 * 60)
+
+    await llm_prompt([make_feed_post(title="Title 2")], options=options)
+
+    # the purge has already run for this hour, the old answer stays until the next one
+    assert _count_cached_answers(db_path) == 3
